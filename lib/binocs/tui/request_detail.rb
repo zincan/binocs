@@ -34,6 +34,14 @@ module Binocs
         build_content
       end
 
+      def go_to_tab(index)
+        return if index < 0 || index >= TABS.length
+
+        @current_tab = index
+        @scroll_offset = 0
+        build_content
+      end
+
       def scroll_up
         @scroll_offset = [@scroll_offset - 1, 0].max
       end

@@ -49,38 +49,53 @@ module Binocs
         height = Curses.lines
         width = Curses.cols
 
-        # Close existing windows if they exist
-        @list_window&.close
-        @detail_window&.close
+        # Close overlay windows
         @help_window&.close
+        @help_window = nil
         @filter_window&.close
+        @filter_window = nil
 
-        case @mode
-        when :list
-          @list_window = RequestList.new(
-            height: height,
-            width: width,
-            top: 0,
-            left: 0
-          )
-        when :detail
-          # Split screen: list on left, detail on right
+        # Determine if we need split screen (detail view active)
+        showing_detail = @mode == :detail || (@previous_mode == :detail && (@mode == :help || @mode == :filter))
+
+        # Recreate main windows if dimensions changed or mode changed
+        if showing_detail
           list_width = [width / 3, 40].max
           detail_width = width - list_width
 
-          @list_window = RequestList.new(
-            height: height,
-            width: list_width,
-            top: 0,
-            left: 0
-          )
+          if @list_window.nil? || @list_window.width != list_width || @list_window.height != height
+            @list_window&.close
+            @list_window = RequestList.new(
+              height: height,
+              width: list_width,
+              top: 0,
+              left: 0
+            )
+          end
 
-          @detail_window = RequestDetail.new(
-            height: height,
-            width: detail_width,
-            top: 0,
-            left: list_width
-          )
+          if @detail_window.nil? || @detail_window.width != detail_width || @detail_window.height != height
+            @detail_window&.close
+            @detail_window = RequestDetail.new(
+              height: height,
+              width: detail_width,
+              top: 0,
+              left: list_width
+            )
+          end
+        else
+          # Full width list
+          @detail_window&.close
+          @detail_window = nil
+
+          if @list_window.nil? || @list_window.width != width || @list_window.height != height
+            @list_window&.close
+            @list_window = RequestList.new(
+              height: height,
+              width: width,
+              top: 0,
+              left: 0
+            )
+          end
         end
 
         # Help overlay (centered)
@@ -95,7 +110,7 @@ module Binocs
           )
         end
 
-        # Filter menu (right side overlay)
+        # Filter menu (centered overlay)
         if @mode == :filter
           filter_height = [20, height - 4].min
           filter_width = [40, width / 2].min
@@ -207,7 +222,9 @@ module Binocs
         when '/'
           enter_search_mode
         when 'f'
-          enter_filter_mode
+          @previous_mode = :list
+          @mode = :filter
+          recalculate_layout
         when 'c'
           @list_window.clear_filters
           @last_refresh = Time.now
@@ -215,6 +232,7 @@ module Binocs
           load_data
           @last_refresh = Time.now
         when '?'
+          @previous_mode = :list
           @mode = :help
           recalculate_layout
         when 'd'
@@ -228,7 +246,9 @@ module Binocs
         case key
         when 'q', 'Q'
           @running = false
-        when 'h', 27, Curses::KEY_LEFT # Esc
+        when 'h', Curses::KEY_LEFT
+          exit_detail_mode
+        when 27 # Esc
           exit_detail_mode
         when 'j', Curses::KEY_DOWN
           @detail_window.scroll_down
@@ -238,10 +258,17 @@ module Binocs
           @detail_window.page_down
         when Curses::KEY_PPAGE, 21 # Ctrl+U
           @detail_window.page_up
-        when 9 # Tab
+        when 9, ']', 'L' # Tab, ], L - next tab
           @detail_window.next_tab
-        when 353 # Shift+Tab (may vary by terminal)
+        when 353, '[', 'H' # Shift+Tab, [, H - prev tab
           @detail_window.prev_tab
+        when '1' then @detail_window.go_to_tab(0) # Overview
+        when '2' then @detail_window.go_to_tab(1) # Params
+        when '3' then @detail_window.go_to_tab(2) # Headers
+        when '4' then @detail_window.go_to_tab(3) # Body
+        when '5' then @detail_window.go_to_tab(4) # Response
+        when '6' then @detail_window.go_to_tab(5) # Logs
+        when '7' then @detail_window.go_to_tab(6) # Exception
         when 'n' # Next request
           @list_window.move_down
           update_detail_request
@@ -249,25 +276,30 @@ module Binocs
           @list_window.move_up
           update_detail_request
         when '?'
+          @previous_mode = :detail
           @mode = :help
+          recalculate_layout
+        when 'f'
+          @previous_mode = :detail
+          @mode = :filter
           recalculate_layout
         end
       end
 
       def handle_help_input(key)
         case key
-        when '?', 27, 'q', Curses::KEY_ENTER, 10, 13 # Esc or ? or q or Enter
-          @mode = @detail_window ? :detail : :list
+        when '?', 27, 'q', Curses::KEY_ENTER, 10, 13, 'h' # Esc or ? or q or Enter or h
+          @mode = @previous_mode || :list
           recalculate_layout
         end
       end
 
       def handle_filter_input(key)
         case key
-        when 27 # Esc
+        when 27, 'q' # Esc or q
           if @filter_window.back
             apply_filters
-            @mode = @detail_window ? :detail : :list
+            @mode = @previous_mode || :list
             recalculate_layout
           end
         when 'j', Curses::KEY_DOWN
@@ -280,6 +312,10 @@ module Binocs
           @list_window.clear_filters
           @filter_window.set_filters({})
           @last_refresh = Time.now
+        when 'f' # Toggle filter menu off
+          apply_filters
+          @mode = @previous_mode || :list
+          recalculate_layout
         end
       end
 

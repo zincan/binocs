@@ -198,8 +198,9 @@ bundle exec binocs
 
 | Key | Action |
 |-----|--------|
-| `Tab` | Next tab |
-| `Shift+Tab` | Previous tab |
+| `Tab` / `]` / `L` | Next tab |
+| `Shift+Tab` / `[` / `H` | Previous tab |
+| `1`-`7` | Jump to tab by number |
 | `j` / `↓` | Scroll down |
 | `k` / `↑` | Scroll up |
 | `n` | Next request |

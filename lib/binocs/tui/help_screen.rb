@@ -5,8 +5,8 @@ module Binocs
     class HelpScreen < Window
       KEYBINDINGS = [
         ['Navigation', [
-          ['j / ↓', 'Move down'],
-          ['k / ↑', 'Move up'],
+          ['j / ↓', 'Move down / Scroll down'],
+          ['k / ↑', 'Move up / Scroll up'],
           ['g / Home', 'Go to top'],
           ['G / End', 'Go to bottom'],
           ['Ctrl+d / PgDn', 'Page down'],
@@ -15,10 +15,14 @@ module Binocs
         ['Actions', [
           ['Enter / l', 'View request details'],
           ['h / Esc', 'Go back / Close'],
-          ['Tab', 'Next tab (detail view)'],
-          ['Shift+Tab', 'Previous tab (detail view)'],
+          ['n / p', 'Next/prev request (detail)'],
           ['d', 'Delete request'],
           ['D', 'Delete all requests'],
+        ]],
+        ['Tabs (Detail View)', [
+          ['Tab / ] / L', 'Next tab'],
+          ['Shift+Tab / [ / H', 'Previous tab'],
+          ['1-7', 'Jump to tab by number'],
         ]],
         ['Filtering', [
           ['/', 'Search by path'],
