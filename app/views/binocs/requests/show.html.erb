@@ -1,0 +1,229 @@
+<div class="space-y-6">
+  <!-- Back Link -->
+  <div>
+    <%= link_to binocs.requests_path, class: "inline-flex items-center text-sm text-slate-400 hover:text-white" do %>
+      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+      </svg>
+      Back to Requests
+    <% end %>
+  </div>
+
+  <!-- Header -->
+  <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <span class="inline-flex items-center rounded px-3 py-1.5 text-sm font-medium <%= method_badge_class(@request.method) %>">
+          <%= @request.method %>
+        </span>
+        <span class="inline-flex items-center rounded px-3 py-1.5 text-sm font-medium <%= status_badge_class(@request.status_code) %>">
+          <%= @request.status_code %>
+        </span>
+        <h1 class="text-lg font-semibold text-white break-all"><%= @request.path %></h1>
+      </div>
+      <%= button_to "Delete", binocs.request_path(@request.uuid), method: :delete, class: "rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500", data: { turbo_confirm: "Are you sure?" } %>
+    </div>
+
+    <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div>
+        <dt class="text-sm text-slate-400">Duration</dt>
+        <dd class="text-lg font-medium text-white"><%= @request.formatted_duration %></dd>
+      </div>
+      <div>
+        <dt class="text-sm text-slate-400">Memory Delta</dt>
+        <dd class="text-lg font-medium text-white"><%= @request.formatted_memory_delta %></dd>
+      </div>
+      <div>
+        <dt class="text-sm text-slate-400">IP Address</dt>
+        <dd class="text-lg font-medium text-white"><%= @request.ip_address || "N/A" %></dd>
+      </div>
+      <div>
+        <dt class="text-sm text-slate-400">Time</dt>
+        <dd class="text-lg font-medium text-white"><%= @request.created_at.strftime("%Y-%m-%d %H:%M:%S") %></dd>
+      </div>
+    </div>
+
+    <% if @request.controller_action %>
+      <div class="mt-4 pt-4 border-t border-slate-700">
+        <span class="text-sm text-slate-400">Route:</span>
+        <span class="ml-2 text-sm text-white"><%= @request.controller_action %></span>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Exception (if present) -->
+  <% if @request.has_exception? %>
+    <div class="bg-red-900/20 rounded-lg p-6 border border-red-800">
+      <h2 class="text-lg font-semibold text-red-400 flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+        </svg>
+        Exception
+      </h2>
+      <div class="mt-4 space-y-3">
+        <div>
+          <span class="text-sm text-red-300 font-medium"><%= @request.exception["class"] %></span>
+        </div>
+        <div class="text-sm text-red-200">
+          <%= @request.exception["message"] %>
+        </div>
+        <% if @request.exception["backtrace"].present? %>
+          <div class="mt-4">
+            <h3 class="text-sm font-medium text-red-300 mb-2">Backtrace</h3>
+            <pre class="bg-slate-900 rounded p-4 text-xs text-red-200 overflow-x-auto max-h-96"><%= @request.exception["backtrace"].join("\n") %></pre>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Tabs -->
+  <div x-data="{ activeTab: 'params' }" class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+    <!-- Tab Headers -->
+    <div class="border-b border-slate-700">
+      <nav class="flex -mb-px">
+        <button @click="activeTab = 'params'" :class="activeTab === 'params' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-6 py-3 border-b-2 text-sm font-medium">
+          Params
+        </button>
+        <button @click="activeTab = 'headers'" :class="activeTab === 'headers' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-6 py-3 border-b-2 text-sm font-medium">
+          Headers
+        </button>
+        <button @click="activeTab = 'body'" :class="activeTab === 'body' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-6 py-3 border-b-2 text-sm font-medium">
+          Body
+        </button>
+        <button @click="activeTab = 'response'" :class="activeTab === 'response' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-6 py-3 border-b-2 text-sm font-medium">
+          Response
+        </button>
+        <button @click="activeTab = 'logs'" :class="activeTab === 'logs' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-6 py-3 border-b-2 text-sm font-medium">
+          Logs
+          <% if @request.logs.present? && @request.logs.any? %>
+            <span class="ml-2 inline-flex items-center rounded-full bg-slate-700 px-2 py-0.5 text-xs"><%= @request.logs.size %></span>
+          <% end %>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="p-6">
+      <!-- Params Tab -->
+      <div x-show="activeTab === 'params'">
+        <% if @request.params.present? && @request.params.any? %>
+          <div class="space-y-2">
+            <% @request.params.each do |key, value| %>
+              <div class="flex">
+                <span class="text-sm font-medium text-indigo-400 w-48 flex-shrink-0"><%= key %></span>
+                <span class="text-sm text-white break-all"><%= format_value(value) %></span>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-sm text-slate-400">No parameters</p>
+        <% end %>
+      </div>
+
+      <!-- Headers Tab -->
+      <div x-show="activeTab === 'headers'" x-cloak>
+        <div class="space-y-6">
+          <div>
+            <h3 class="text-sm font-medium text-slate-300 mb-3">Request Headers</h3>
+            <% if @request.request_headers.present? && @request.request_headers.any? %>
+              <div class="space-y-2">
+                <% @request.request_headers.each do |key, value| %>
+                  <div class="flex">
+                    <span class="text-sm font-medium text-indigo-400 w-48 flex-shrink-0"><%= key %></span>
+                    <span class="text-sm text-white break-all"><%= value %></span>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <p class="text-sm text-slate-400">No request headers</p>
+            <% end %>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-medium text-slate-300 mb-3">Response Headers</h3>
+            <% if @request.response_headers.present? && @request.response_headers.any? %>
+              <div class="space-y-2">
+                <% @request.response_headers.each do |key, value| %>
+                  <div class="flex">
+                    <span class="text-sm font-medium text-indigo-400 w-48 flex-shrink-0"><%= key %></span>
+                    <span class="text-sm text-white break-all"><%= value %></span>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <p class="text-sm text-slate-400">No response headers</p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body Tab -->
+      <div x-show="activeTab === 'body'" x-cloak>
+        <h3 class="text-sm font-medium text-slate-300 mb-3">Request Body</h3>
+        <% if @request.request_body.present? %>
+          <pre class="bg-slate-900 rounded p-4 text-sm text-white overflow-x-auto max-h-96"><%= format_body(@request.request_body) %></pre>
+        <% else %>
+          <p class="text-sm text-slate-400">No request body</p>
+        <% end %>
+      </div>
+
+      <!-- Response Tab -->
+      <div x-show="activeTab === 'response'" x-cloak>
+        <h3 class="text-sm font-medium text-slate-300 mb-3">Response Body</h3>
+        <% if @request.response_body.present? %>
+          <pre class="bg-slate-900 rounded p-4 text-sm text-white overflow-x-auto max-h-96"><%= format_body(@request.response_body) %></pre>
+        <% else %>
+          <p class="text-sm text-slate-400">No response body captured</p>
+        <% end %>
+      </div>
+
+      <!-- Logs Tab -->
+      <div x-show="activeTab === 'logs'" x-cloak>
+        <% if @request.logs.present? && @request.logs.any? %>
+          <div class="space-y-3">
+            <% @request.logs.each do |log| %>
+              <div class="bg-slate-900 rounded p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-medium text-indigo-400 uppercase"><%= log["type"] %></span>
+                  <span class="text-xs text-slate-500"><%= log["timestamp"] %></span>
+                </div>
+                <% if log["type"] == "controller" %>
+                  <div class="text-sm text-white">
+                    <span class="text-slate-400">Controller:</span> <%= log["controller"] %>#<%= log["action"] %>
+                    <% if log["view_runtime"] %>
+                      <span class="ml-4 text-slate-400">View:</span> <%= log["view_runtime"] %>ms
+                    <% end %>
+                    <% if log["db_runtime"] %>
+                      <span class="ml-4 text-slate-400">DB:</span> <%= log["db_runtime"] %>ms
+                    <% end %>
+                  </div>
+                <% elsif log["type"] == "redirect" %>
+                  <div class="text-sm text-white">
+                    <span class="text-slate-400">Redirect to:</span> <%= log["location"] %>
+                    <span class="ml-4 text-slate-400">Status:</span> <%= log["status"] %>
+                  </div>
+                <% else %>
+                  <pre class="text-sm text-white"><%= format_value(log) %></pre>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-sm text-slate-400">No logs captured</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full URL -->
+  <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+    <h2 class="text-sm font-medium text-slate-400 mb-2">Full URL</h2>
+    <p class="text-sm text-white break-all font-mono"><%= @request.full_url %></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<style>
+  [x-cloak] { display: none !important; }
+</style>

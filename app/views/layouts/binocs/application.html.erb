@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-900">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Binocs - Request Monitor</title>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag "binocs/application", media: "all" %>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            binocs: {
+              bg: '#0f172a',
+              card: '#1e293b',
+              border: '#334155',
+              accent: '#6366f1'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <%= turbo_include_tags %>
+  <%= stimulus_include_tags rescue nil %>
+</head>
+<body class="h-full">
+  <div class="min-h-full">
+    <!-- Navigation -->
+    <nav class="bg-slate-800 border-b border-slate-700">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 items-center justify-between">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <span class="text-2xl font-bold text-indigo-400">Binocs</span>
+              <span class="ml-2 text-sm text-slate-400">Request Monitor</span>
+            </div>
+            <div class="ml-10 flex items-baseline space-x-4">
+              <%= link_to "Requests", binocs.requests_path, class: "rounded-md px-3 py-2 text-sm font-medium #{current_page?(binocs.requests_path) ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}" %>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <span class="text-xs text-slate-500">
+              Rails <%= Rails::VERSION::STRING %> |
+              Ruby <%= RUBY_VERSION %> |
+              <%= Rails.env %>
+            </span>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <% if notice %>
+      <div class="bg-green-900/50 border-b border-green-800">
+        <div class="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
+          <p class="text-sm text-green-300"><%= notice %></p>
+        </div>
+      </div>
+    <% end %>
+    <% if alert %>
+      <div class="bg-red-900/50 border-b border-red-800">
+        <div class="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
+          <p class="text-sm text-red-300"><%= alert %></p>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Main Content -->
+    <main class="bg-slate-900 min-h-screen">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <%= yield %>
+      </div>
+    </main>
+  </div>
+
+  <%= turbo_stream_from "binocs_requests" %>
+</body>
+</html>

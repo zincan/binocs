@@ -1,0 +1,91 @@
+<div class="space-y-6">
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+      <dt class="text-sm font-medium text-slate-400">Total Requests</dt>
+      <dd class="mt-1 text-3xl font-semibold text-white"><%= @stats[:total] %></dd>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+      <dt class="text-sm font-medium text-slate-400">Today</dt>
+      <dd class="mt-1 text-3xl font-semibold text-white"><%= @stats[:today] %></dd>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+      <dt class="text-sm font-medium text-slate-400">Avg Duration</dt>
+      <dd class="mt-1 text-3xl font-semibold text-white"><%= @stats[:avg_duration] || 0 %><span class="text-lg text-slate-400">ms</span></dd>
+    </div>
+    <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+      <dt class="text-sm font-medium text-slate-400">Error Rate</dt>
+      <dd class="mt-1 text-3xl font-semibold <%= @stats[:error_rate].to_f > 5 ? 'text-red-400' : 'text-green-400' %>"><%= @stats[:error_rate] || 0 %><span class="text-lg text-slate-400">%</span></dd>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
+    <%= form_with url: binocs.requests_path, method: :get, local: true, class: "space-y-4" do |f| %>
+      <div class="flex flex-wrap gap-4">
+        <!-- Search -->
+        <div class="flex-1 min-w-[200px]">
+          <%= text_field_tag :search, params[:search], placeholder: "Search path, controller...", class: "w-full rounded-md bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-indigo-500 focus:ring-indigo-500 text-sm" %>
+        </div>
+
+        <!-- Method Filter -->
+        <div>
+          <%= select_tag :method, options_for_select([["All Methods", ""], ["GET", "GET"], ["POST", "POST"], ["PUT", "PUT"], ["PATCH", "PATCH"], ["DELETE", "DELETE"]], params[:method]), class: "rounded-md bg-slate-700 border-slate-600 text-white text-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+          <%= select_tag :status, options_for_select([["All Status", ""], ["2xx Success", "2xx"], ["3xx Redirect", "3xx"], ["4xx Client Error", "4xx"], ["5xx Server Error", "5xx"]], params[:status]), class: "rounded-md bg-slate-700 border-slate-600 text-white text-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+
+        <!-- Controller Filter -->
+        <div>
+          <%= select_tag :controller_name, options_for_select([["All Controllers", ""]] + Binocs::Request.controllers_list.map { |c| [c, c] }, params[:controller_name]), class: "rounded-md bg-slate-700 border-slate-600 text-white text-sm focus:border-indigo-500 focus:ring-indigo-500" %>
+        </div>
+
+        <!-- Has Exception -->
+        <div class="flex items-center">
+          <%= check_box_tag :has_exception, "1", params[:has_exception] == "1", class: "rounded bg-slate-700 border-slate-600 text-indigo-500 focus:ring-indigo-500" %>
+          <%= label_tag :has_exception, "Has Exception", class: "ml-2 text-sm text-slate-300" %>
+        </div>
+
+        <!-- Submit -->
+        <div>
+          <%= submit_tag "Filter", class: "rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer" %>
+        </div>
+
+        <!-- Clear All -->
+        <div>
+          <%= link_to "Clear Filters", binocs.requests_path, class: "rounded-md bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-500" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Actions Bar -->
+  <div class="flex justify-between items-center">
+    <div class="text-sm text-slate-400">
+      Showing <%= @requests.size %> requests
+    </div>
+    <div class="flex gap-2">
+      <%= link_to binocs.requests_path, class: "rounded-md bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600", data: { turbo_frame: "_top" } do %>
+        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Refresh
+      <% end %>
+      <%= button_to "Clear All", binocs.clear_requests_path, method: :delete, class: "rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500", data: { turbo_confirm: "Are you sure you want to clear all requests?" } %>
+    </div>
+  </div>
+
+  <!-- Requests List -->
+  <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+    <div id="requests-list" class="divide-y divide-slate-700">
+      <% if @requests.any? %>
+        <%= render partial: "binocs/requests/request", collection: @requests, as: :request %>
+      <% else %>
+        <%= render partial: "binocs/requests/empty_list" %>
+      <% end %>
+    </div>
+  </div>
+</div>

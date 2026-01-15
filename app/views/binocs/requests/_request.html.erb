@@ -1,0 +1,61 @@
+<%= turbo_frame_tag dom_id(request) do %>
+  <%= link_to binocs.request_path(request.uuid), class: "block hover:bg-slate-700/50 transition-colors duration-150", data: { turbo_frame: "_top" } do %>
+    <div class="px-4 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4 min-w-0">
+          <!-- Method Badge -->
+          <span class="inline-flex items-center rounded px-2 py-1 text-xs font-medium <%= method_badge_class(request.method) %>">
+            <%= request.method %>
+          </span>
+
+          <!-- Status Badge -->
+          <span class="inline-flex items-center rounded px-2 py-1 text-xs font-medium <%= status_badge_class(request.status_code) %>">
+            <%= request.status_code %>
+          </span>
+
+          <!-- Path -->
+          <span class="text-sm text-white truncate" title="<%= request.path %>">
+            <%= request.short_path %>
+          </span>
+
+          <!-- Controller#Action -->
+          <% if request.controller_action %>
+            <span class="text-xs text-slate-400">
+              <%= request.controller_action %>
+            </span>
+          <% end %>
+
+          <!-- Exception Indicator -->
+          <% if request.has_exception? %>
+            <span class="inline-flex items-center rounded-full bg-red-900/50 px-2 py-1 text-xs font-medium text-red-300">
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+              Exception
+            </span>
+          <% end %>
+        </div>
+
+        <div class="flex items-center space-x-4 text-sm text-slate-400 flex-shrink-0">
+          <!-- Duration -->
+          <span title="Duration">
+            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <%= request.formatted_duration %>
+          </span>
+
+          <!-- IP Address -->
+          <span title="IP Address" class="hidden lg:inline">
+            <%= request.ip_address %>
+          </span>
+
+          <!-- Timestamp -->
+          <span title="<%= request.created_at %>">
+            <%= time_ago_in_words(request.created_at) %> ago
+          </span>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>

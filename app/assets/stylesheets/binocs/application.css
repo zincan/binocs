@@ -1,0 +1,67 @@
+/*
+ * Binocs - Request Monitor Styles
+ * Base styles - Tailwind is loaded via CDN in layout
+ */
+
+/* Additional custom styles */
+.binocs-container {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Code/Pre styling */
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Animation for new requests */
+@keyframes highlight-new {
+  0% {
+    background-color: rgba(99, 102, 241, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.turbo-stream-prepend {
+  animation: highlight-new 2s ease-out;
+}
+
+/* Form input styling */
+input[type="text"],
+select {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+input[type="text"]:focus,
+select:focus {
+  border-color: #6366f1;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+input[type="text"]::placeholder {
+  color: #94a3b8;
+}
