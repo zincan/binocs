@@ -1,6 +1,6 @@
 # Binocs
 
-A Laravel Telescope-inspired request monitoring dashboard for Rails applications. Binocs provides real-time visibility into HTTP requests, making debugging and development easier.
+A Laravel Telescope-inspired request monitoring dashboard for Rails applications. Binocs provides real-time visibility into HTTP requests through both a web interface and a terminal UI with vim-style navigation, making debugging and development easier whether you prefer the browser or the command line.
 
 ## Features
 
