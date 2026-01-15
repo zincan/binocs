@@ -1,4 +1,11 @@
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ live: true, connected: false }" x-init="
+  // Check connection status
+  if (typeof Turbo !== 'undefined' && Turbo.cable) {
+    connected = Turbo.cable.connection.isOpen();
+    Turbo.cable.connection.events.connected = () => { connected = true; };
+    Turbo.cable.connection.events.disconnected = () => { connected = false; };
+  }
+">
   <!-- Stats Cards -->
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
@@ -64,9 +71,25 @@
 
   <!-- Actions Bar -->
   <div class="flex justify-between items-center">
-    <div class="text-sm text-slate-400">
-      Showing <%= @requests.size %> requests
+    <div class="flex items-center gap-4">
+      <span class="text-sm text-slate-400">
+        Showing <%= @requests.size %> requests
+      </span>
+
+      <!-- Live Toggle -->
+      <button
+        @click="live = !live"
+        :class="live ? 'bg-green-600 hover:bg-green-500' : 'bg-slate-600 hover:bg-slate-500'"
+        class="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white transition-colors"
+      >
+        <span class="relative flex h-2 w-2">
+          <span x-show="live" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span :class="live ? 'bg-green-400' : 'bg-slate-400'" class="relative inline-flex rounded-full h-2 w-2"></span>
+        </span>
+        <span x-text="live ? 'Live' : 'Paused'">Live</span>
+      </button>
     </div>
+
     <div class="flex gap-2">
       <%= link_to binocs.requests_path, class: "rounded-md bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600", data: { turbo_frame: "_top" } do %>
         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,4 +111,9 @@
       <% end %>
     </div>
   </div>
+
+  <!-- Turbo Stream Subscription (controlled by live toggle) -->
+  <template x-if="live">
+    <%= turbo_stream_from "binocs_requests" %>
+  </template>
 </div>

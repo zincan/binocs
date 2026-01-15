@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'optparse'
+
+options = {
+  environment: ENV['RAILS_ENV'] || 'development',
+  refresh_interval: 2
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: binocs [options]"
+
+  opts.on("-e", "--environment ENV", "Rails environment (default: development)") do |env|
+    options[:environment] = env
+  end
+
+  opts.on("-r", "--refresh SECONDS", Integer, "Refresh interval in seconds (default: 2)") do |r|
+    options[:refresh_interval] = r
+  end
+
+  opts.on("-h", "--help", "Show this help message") do
+    puts opts
+    puts <<~HELP
+
+    Vim-style keybindings:
+      j/↓        Move down
+      k/↑        Move up
+      g          Go to top
+      G          Go to bottom
+      Enter/l    View request details
+      h/Esc      Go back / Close detail view
+      /          Search
+      f          Filter menu
+      r          Refresh
+      q          Quit
+      ?          Show help
+
+    HELP
+    exit
+  end
+end.parse!
+
+# Boot Rails environment
+ENV['RAILS_ENV'] = options[:environment]
+
+# Find and load the Rails application
+def find_rails_root
+  dir = Dir.pwd
+  while dir != '/'
+    return dir if File.exist?(File.join(dir, 'config', 'environment.rb'))
+    dir = File.dirname(dir)
+  end
+  nil
+end
+
+rails_root = find_rails_root
+
+if rails_root.nil?
+  puts "\e[31mError: Could not find Rails application.\e[0m"
+  puts "Make sure you're running this from within a Rails project directory."
+  exit 1
+end
+
+Dir.chdir(rails_root)
+
+begin
+  require File.join(rails_root, 'config', 'environment')
+rescue => e
+  puts "\e[31mError loading Rails environment:\e[0m #{e.message}"
+  exit 1
+end
+
+# Now load and run the TUI
+require 'binocs/tui'
+
+begin
+  Binocs::TUI::App.new(options).run
+rescue Interrupt
+  # Clean exit on Ctrl+C
+  exit 0
+rescue => e
+  puts "\e[31mError:\e[0m #{e.message}"
+  puts e.backtrace.first(5).join("\n") if ENV['DEBUG']
+  exit 1
+end

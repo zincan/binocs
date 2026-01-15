@@ -115,10 +115,18 @@ module Binocs
       end
 
       def broadcast_new_request(record)
-        return unless defined?(Turbo::StreamsChannel)
+        unless defined?(Turbo::StreamsChannel)
+          Rails.logger.debug "[Binocs] Turbo::StreamsChannel not defined, skipping broadcast"
+          return
+        end
 
         request = Binocs::Request.find_by(uuid: record[:uuid])
-        return unless request
+        unless request
+          Rails.logger.debug "[Binocs] Request not found for broadcast: #{record[:uuid]}"
+          return
+        end
+
+        Rails.logger.debug "[Binocs] Broadcasting new request: #{request.method} #{request.path}"
 
         Turbo::StreamsChannel.broadcast_prepend_to(
           "binocs_requests",
@@ -126,8 +134,11 @@ module Binocs
           partial: "binocs/requests/request",
           locals: { request: request }
         )
+
+        Rails.logger.debug "[Binocs] Broadcast complete"
       rescue => e
         Rails.logger.error "[Binocs] Failed to broadcast request: #{e.message}"
+        Rails.logger.error e.backtrace.first(5).join("\n")
       end
 
       def cleanup_old_requests

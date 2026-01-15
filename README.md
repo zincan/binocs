@@ -10,6 +10,7 @@ A Laravel Telescope-inspired request monitoring dashboard for Rails applications
 - **Exception Tracking**: Quickly identify and debug errors with full backtrace
 - **Performance Insights**: Track request duration and memory usage
 - **Dark Theme UI**: Beautiful, modern interface built with Tailwind CSS
+- **Terminal UI (TUI)**: Vim-style keyboard navigation for console-based monitoring
 - **Production Safe**: Automatically disabled in production environments
 
 ## Requirements
@@ -17,6 +18,7 @@ A Laravel Telescope-inspired request monitoring dashboard for Rails applications
 - Ruby 3.0+
 - Rails 7.0+
 - ActionCable (for real-time updates)
+- ncurses development libraries (for TUI - typically pre-installed on macOS/Linux)
 
 ## Installation
 
@@ -150,6 +152,68 @@ Click on any request to see full details including:
 ### Real-time Updates
 
 Requests appear in the dashboard in real-time as they're made to your application. The dashboard uses Turbo Streams over ActionCable for instant updates without page refresh.
+
+## Terminal UI (TUI)
+
+Binocs includes a full-featured terminal interface for monitoring requests directly from your console. Run it alongside your Rails server for a vim-style debugging experience.
+
+### Starting the TUI
+
+From your Rails application directory:
+
+```bash
+bundle exec binocs
+```
+
+Or if you're in the binocs gem directory:
+
+```bash
+cd /path/to/your/rails/app
+bundle exec binocs
+```
+
+### Keyboard Navigation
+
+**List View:**
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `g` / `Home` | Go to top |
+| `G` / `End` | Go to bottom |
+| `Ctrl+d` / `PgDn` | Page down |
+| `Ctrl+u` / `PgUp` | Page up |
+| `Enter` / `l` | View request details |
+| `/` | Search by path |
+| `f` | Open filter menu |
+| `c` | Clear all filters |
+| `r` | Refresh list |
+| `d` | Delete selected request |
+| `D` | Delete all requests |
+| `?` | Show help |
+| `q` | Quit |
+
+**Detail View:**
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Next tab |
+| `Shift+Tab` | Previous tab |
+| `j` / `↓` | Scroll down |
+| `k` / `↑` | Scroll up |
+| `n` | Next request |
+| `p` | Previous request |
+| `h` / `Esc` | Go back to list |
+
+### TUI Features
+
+- **Split-screen layout**: List on left, detail on right when viewing a request
+- **Tabbed detail view**: Overview, Params, Headers, Body, Response, Logs, Exception
+- **Color-coded**: HTTP methods and status codes are highlighted by type
+- **Auto-refresh**: List automatically updates every 2 seconds
+- **Filtering**: Same filtering capabilities as the web interface
+- **Responsive**: Adapts to terminal size changes
 
 ## Rake Tasks
 

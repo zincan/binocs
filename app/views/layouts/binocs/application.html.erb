@@ -8,6 +8,7 @@
   <%= csp_meta_tag %>
   <%= stylesheet_link_tag "binocs/application", media: "all" %>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -27,6 +28,7 @@
   </script>
   <%= turbo_include_tags %>
   <%= stimulus_include_tags rescue nil %>
+  <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="h-full">
   <div class="min-h-full">
@@ -77,7 +79,5 @@
       </div>
     </main>
   </div>
-
-  <%= turbo_stream_from "binocs_requests" %>
 </body>
 </html>

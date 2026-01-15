@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email       = ['n@zincan.com']
   spec.homepage    = 'https://github.com/zincan/binocs'
   spec.summary     = 'Laravel Telescope-like request monitoring for Rails'
-  spec.description = 'A Rails engine that provides a beautiful dashboard to monitor and debug HTTP requests, similar to Laravel Telescope.'
+  spec.description = 'A Rails engine that provides a beautiful dashboard to monitor and debug HTTP requests, similar to Laravel Telescope. Includes a terminal UI with vim keybindings.'
   spec.license     = 'MIT'
 
   spec.metadata['homepage_uri'] = spec.homepage
@@ -17,12 +17,16 @@ Gem::Specification.new do |spec|
   spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.md']
+    Dir['{app,config,db,lib,exe}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.md']
   end
+
+  spec.bindir = 'exe'
+  spec.executables = ['binocs']
 
   spec.required_ruby_version = '>= 3.0.0'
 
   spec.add_dependency 'rails', '>= 7.0'
   spec.add_dependency 'stimulus-rails', '>= 1.0'
   spec.add_dependency 'turbo-rails', '>= 1.0'
+  spec.add_dependency 'curses', '~> 1.4'
 end

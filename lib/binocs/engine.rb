@@ -40,10 +40,21 @@ module Binocs
       app.config.importmap.paths << Engine.root.join("config/importmap.rb")
     end
 
+    initializer "binocs.helpers" do
+      ActiveSupport.on_load(:action_controller_base) do
+        helper Binocs::ApplicationHelper
+      end
+    end
+
     config.after_initialize do
       if Rails.env.production? && Binocs.configuration.enabled
         Rails.logger.warn "[Binocs] WARNING: Binocs is disabled in production for security reasons."
         Binocs.configuration.enabled = false
+      end
+
+      # Configure renderer for Turbo broadcasts (no request context available)
+      if defined?(ApplicationController)
+        ApplicationController.renderer.defaults[:http_host] = ENV.fetch("DOMAIN", "localhost:3000")
       end
     end
   end
