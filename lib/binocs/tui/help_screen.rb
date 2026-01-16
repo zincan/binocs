@@ -15,14 +15,16 @@ module Binocs
         ['Actions', [
           ['Enter / l', 'View request details'],
           ['h / Esc', 'Go back / Close'],
-          ['n / p', 'Next/prev request (detail)'],
+          ['n / J', 'Next request (detail view)'],
+          ['p / K', 'Prev request (detail view)'],
           ['d', 'Delete request'],
           ['D', 'Delete all requests'],
         ]],
         ['Tabs (Detail View)', [
           ['Tab / ] / L', 'Next tab'],
           ['Shift+Tab / [ / H', 'Previous tab'],
-          ['1-7', 'Jump to tab by number'],
+          ['1-8', 'Jump to tab by number'],
+          ['o', 'Open Swagger docs in browser'],
         ]],
         ['Filtering', [
           ['/', 'Search by path'],

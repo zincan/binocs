@@ -3,9 +3,9 @@
 module Binocs
   module TUI
     class RequestDetail < Window
-      TABS = %w[Overview Params Headers Body Response Logs Exception].freeze
+      TABS = %w[Overview Params Headers Body Response Logs Exception Swagger].freeze
 
-      attr_accessor :request, :current_tab, :scroll_offset
+      attr_accessor :request, :current_tab, :scroll_offset, :swagger_operation
 
       def initialize(height:, width:, top:, left:)
         super
@@ -13,12 +13,14 @@ module Binocs
         @current_tab = 0
         @scroll_offset = 0
         @content_lines = []
+        @swagger_operation = nil
       end
 
-      def set_request(request)
+      def set_request(request, reset_tab: true)
         @request = request
-        @current_tab = 0
+        @current_tab = 0 if reset_tab
         @scroll_offset = 0
+        @swagger_operation = Binocs::Swagger::PathMatcher.find_operation(request) if request
         build_content
       end
 
@@ -147,6 +149,7 @@ module Binocs
         when 'Response' then build_response
         when 'Logs' then build_logs
         when 'Exception' then build_exception
+        when 'Swagger' then build_swagger
         end
       end
 
@@ -275,6 +278,103 @@ module Binocs
           end
         else
           add_line('No exception', Colors::STATUS_SUCCESS)
+        end
+      end
+
+      def build_swagger
+        unless @swagger_operation
+          add_line('No matching Swagger operation found', Colors::MUTED)
+          add_blank
+          add_line("Request: #{@request.method} #{@request.path}", Colors::MUTED)
+          add_blank
+          add_line('Ensure swagger_spec_url is configured correctly.', Colors::MUTED)
+          return
+        end
+
+        op = @swagger_operation
+
+        add_section('Operation')
+        add_field('Operation ID', op[:operation_id] || 'N/A')
+        add_field('Spec Path', op[:spec_path])
+        add_field('Method', op[:method].upcase)
+        add_field('Tags', op[:tags].join(', ')) if op[:tags].any?
+        add_field('Deprecated', 'Yes', Colors::ERROR) if op[:deprecated]
+        add_blank
+
+        if op[:summary].present?
+          add_section('Summary')
+          add_line(op[:summary], Colors::NORMAL)
+          add_blank
+        end
+
+        if op[:description].present?
+          add_section('Description')
+          op[:description].each_line do |line|
+            add_line(line.chomp, Colors::NORMAL)
+          end
+          add_blank
+        end
+
+        if op[:parameters].any?
+          add_section('Parameters')
+          op[:parameters].each do |param|
+            location = param['in']
+            name = param['name']
+            required = param['required'] ? '*' : ''
+            param_type = param.dig('schema', 'type') || 'any'
+            add_field("#{location}:#{name}#{required}", param_type)
+            if param['description'].present?
+              add_line("  #{param['description']}", Colors::MUTED)
+            end
+          end
+          add_blank
+        end
+
+        if op[:request_body].present?
+          add_section('Request Body')
+          content = op[:request_body]['content']
+          if content
+            content.each do |media_type, schema_info|
+              add_field('Content-Type', media_type)
+              if schema_info['schema']
+                format_schema(schema_info['schema'], 1)
+              end
+            end
+          end
+          add_blank
+        end
+
+        if op[:responses].any?
+          add_section('Responses')
+          op[:responses].each do |status, response_info|
+            description = response_info['description'] || ''
+            color = status.to_s.start_with?('2') ? Colors::STATUS_SUCCESS :
+                    status.to_s.start_with?('4') ? Colors::STATUS_CLIENT_ERROR :
+                    status.to_s.start_with?('5') ? Colors::STATUS_SERVER_ERROR : Colors::NORMAL
+            add_field(status.to_s, description, color)
+          end
+          add_blank
+        end
+
+        add_line("Press 'o' to open in browser", Colors::KEY_HINT)
+      end
+
+      def format_schema(schema, indent = 0)
+        prefix = '  ' * indent
+        if schema['type'] == 'object' && schema['properties']
+          schema['properties'].each do |prop_name, prop_schema|
+            prop_type = prop_schema['type'] || 'any'
+            required_mark = schema['required']&.include?(prop_name) ? '*' : ''
+            add_line("#{prefix}#{prop_name}#{required_mark}: #{prop_type}", Colors::NORMAL)
+          end
+        elsif schema['type'] == 'array' && schema['items']
+          add_line("#{prefix}array of:", Colors::NORMAL)
+          format_schema(schema['items'], indent + 1)
+        elsif schema['$ref']
+          ref_name = schema['$ref'].split('/').last
+          add_line("#{prefix}$ref: #{ref_name}", Colors::MUTED)
+        else
+          add_line("#{prefix}type: #{schema['type'] || 'any'}", Colors::NORMAL)
         end
       end
 

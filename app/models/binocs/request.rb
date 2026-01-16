@@ -116,6 +116,49 @@ module Binocs
       "#{controller_name}##{action_name}"
     end
 
+    def swagger_url
+      # Convert path to Swagger UI deep link format: #/{tagName}/{operationId}
+      swagger_path, tag = find_swagger_path_and_tag
+
+      # Generate operationId: method + path with non-alphanumeric chars replaced
+      # /v1/companies/{company_uuid}/invitations -> v1_companies__company_uuid__invitations
+      operation_id = "#{method.downcase}#{swagger_path.gsub(/[^a-zA-Z0-9]/, '_')}"
+
+      "/api-docs/index.html#/#{ERB::Util.url_encode(tag)}/#{operation_id}"
+    end
+
+    def find_swagger_path_and_tag
+      spec_path = Rails.root.join("swagger/v1/swagger.yaml")
+      return [path, default_tag] unless File.exist?(spec_path)
+
+      spec = YAML.load_file(spec_path)
+
+      # Find matching swagger path by converting UUIDs to param placeholders
+      spec["paths"]&.each do |swagger_path, methods|
+        # Create regex from swagger path: /v1/channels/{channel_uuid} -> /v1/channels/[^/]+
+        pattern = swagger_path.gsub(/\{[^}]+\}/, "[^/]+")
+        regex = /\A#{pattern}\z/
+
+        if path.match?(regex) && methods[method.downcase]
+          tag = methods.dig(method.downcase, "tags")&.first || default_tag
+          return [swagger_path, tag]
+        end
+      end
+
+      [path, default_tag]
+    rescue => e
+      Rails.logger.debug "[Binocs] Failed to find swagger path: #{e.message}"
+      [path, default_tag]
+    end
+
+    def default_tag
+      # Fallback: derive tag from controller name
+      # V1::CompaniesController -> "Companies"
+      return "default" unless controller_name
+
+      controller_name.demodulize.sub(/Controller$/, "").titleize
+    end
+
     # Class methods for statistics
     def self.average_duration
       average(:duration_ms)&.round(2)

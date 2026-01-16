@@ -39,6 +39,7 @@ module Binocs
         Curses.stdscr.timeout = 100 # Non-blocking getch with 100ms timeout
 
         Colors.init
+        Curses.refresh # Required before creating windows for colors to work
       end
 
       def create_windows
@@ -58,6 +59,17 @@ module Binocs
         # Determine if we need split screen (detail view active)
         showing_detail = @mode == :detail || (@previous_mode == :detail && (@mode == :help || @mode == :filter))
 
+        # Preserve list window state before potential recreation
+        preserved_state = nil
+        if @list_window
+          preserved_state = {
+            selected_index: @list_window.selected_index,
+            scroll_offset: @list_window.scroll_offset,
+            filters: @list_window.filters.dup,
+            search_query: @list_window.search_query
+          }
+        end
+
         # Recreate main windows if dimensions changed or mode changed
         if showing_detail
           list_width = [width / 3, 40].max
@@ -71,6 +83,7 @@ module Binocs
               top: 0,
               left: 0
             )
+            restore_list_state(preserved_state)
           end
 
           if @detail_window.nil? || @detail_window.width != detail_width || @detail_window.height != height
@@ -95,6 +108,7 @@ module Binocs
               top: 0,
               left: 0
             )
+            restore_list_state(preserved_state)
           end
         end
 
@@ -269,10 +283,13 @@ module Binocs
         when '5' then @detail_window.go_to_tab(4) # Response
         when '6' then @detail_window.go_to_tab(5) # Logs
         when '7' then @detail_window.go_to_tab(6) # Exception
-        when 'n' # Next request
+        when '8' then @detail_window.go_to_tab(7) # Swagger
+        when 'o', 'O'
+          open_swagger_in_browser
+        when 'n', 'J' # Next request (n or Shift+J)
           @list_window.move_down
           update_detail_request
-        when 'p' # Previous request
+        when 'p', 'K' # Previous request (p or Shift+K)
           @list_window.move_up
           update_detail_request
         when '?'
@@ -351,7 +368,7 @@ module Binocs
       end
 
       def update_detail_request
-        @detail_window.set_request(@list_window.selected_request) if @list_window.selected_request
+        @detail_window.set_request(@list_window.selected_request, reset_tab: false) if @list_window.selected_request
       end
 
       def enter_search_mode
@@ -393,6 +410,31 @@ module Binocs
         # Show confirmation? For now, just delete all matching current filters
         Binocs::Request.delete_all
         load_data
+      end
+
+      def open_swagger_in_browser
+        return unless @detail_window&.swagger_operation
+
+        url = Binocs::Swagger::PathMatcher.build_swagger_ui_url(@detail_window.swagger_operation)
+        return unless url
+
+        # Open URL in default browser
+        if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+          system("start", url)
+        elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+          system("open", url)
+        else
+          system("xdg-open", url)
+        end
+      end
+
+      def restore_list_state(state)
+        return unless state && @list_window
+
+        @list_window.selected_index = state[:selected_index]
+        @list_window.scroll_offset = state[:scroll_offset]
+        @list_window.instance_variable_set(:@filters, state[:filters])
+        @list_window.instance_variable_set(:@search_query, state[:search_query])
       end
 
       def cleanup

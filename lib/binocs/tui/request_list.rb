@@ -134,8 +134,10 @@ module Binocs
         y = 1
         x = 1
 
-        header = format_row('METHOD', 'STATUS', 'PATH', 'CONTROLLER', 'DURATION', 'TIME')
-        write(y, x, header, Colors::HEADER, Curses::A_BOLD)
+        # Header
+        path_width = [content_width - 55, 20].max
+        header = "METHOD  STATUS PATH#{' ' * (path_width - 4)} CONTROLLER                DURATION  TIME"
+        write(y, x, header[0, content_width], Colors::HEADER, Curses::A_BOLD)
 
         # Draw separator
         write(2, 1, '─' * content_width, Colors::BORDER)
@@ -160,29 +162,26 @@ module Binocs
       def draw_request_row(y, request, is_selected)
         if is_selected
           # Draw full-width selection background
-          @win.attron(Curses.color_pair(Colors::SELECTED)) do
-            @win.setpos(y, 1)
-            @win.addstr(' ' * content_width)
-          end
+          write(y, 1, ' ' * content_width, Colors::SELECTED)
         end
 
         x = 1
 
-        # Method
-        method_text = request.method.to_s.ljust(7)
+        # Method (simple colored text for now)
+        method_str = request.method.to_s.upcase.ljust(7)
         if is_selected
-          write(y, x, method_text, Colors::SELECTED, Curses::A_BOLD)
+          write(y, x, method_str, Colors::SELECTED, Curses::A_BOLD)
         else
-          write(y, x, method_text, Colors.method_color(request.method), Curses::A_BOLD)
+          write(y, x, method_str, Colors.method_color(request.method), Curses::A_BOLD)
         end
         x += 8
 
-        # Status
-        status_text = (request.status_code || '???').to_s.ljust(6)
+        # Status (simple colored text for now)
+        status_str = (request.status_code || '???').to_s.ljust(6)
         if is_selected
-          write(y, x, status_text, Colors::SELECTED)
+          write(y, x, status_str, Colors::SELECTED)
         else
-          write(y, x, status_text, Colors.status_color(request.status_code))
+          write(y, x, status_str, Colors.status_color(request.status_code))
         end
         x += 7
 
@@ -233,11 +232,6 @@ module Binocs
         # Right side: key hints
         hints = "j/k:nav  Enter:view  /:search  f:filter  r:refresh  ?:help  q:quit"
         write(y, content_width - hints.length, hints, Colors::KEY_HINT, Curses::A_DIM)
-      end
-
-      def format_row(method, status, path, controller, duration, time)
-        path_width = [content_width - 55, 20].max
-        "#{method.ljust(7)} #{status.ljust(6)} #{path.ljust(path_width)} #{controller.ljust(25)} #{duration.ljust(8)} #{time}"
       end
 
       def truncate(str, max_length)

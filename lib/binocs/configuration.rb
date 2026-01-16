@@ -11,7 +11,9 @@ module Binocs
                   :basic_auth_password,
                   :max_requests,
                   :record_request_body,
-                  :record_response_body
+                  :record_response_body,
+                  :swagger_spec_url,
+                  :swagger_ui_url
 
     def initialize
       @enabled = true
@@ -24,10 +26,16 @@ module Binocs
       @max_requests = 1000
       @record_request_body = true
       @record_response_body = true
+      @swagger_spec_url = '/api-docs'
+      @swagger_ui_url = '/api-docs/index.html'
     end
 
     def basic_auth_enabled?
       basic_auth_username.present? && basic_auth_password.present?
+    end
+
+    def swagger_enabled?
+      swagger_spec_url.present?
     end
   end
 end

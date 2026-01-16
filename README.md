@@ -11,6 +11,7 @@ A Laravel Telescope-inspired request monitoring dashboard for Rails applications
 - **Performance Insights**: Track request duration and memory usage
 - **Dark Theme UI**: Beautiful, modern interface built with Tailwind CSS
 - **Terminal UI (TUI)**: Vim-style keyboard navigation for console-based monitoring
+- **Swagger Integration**: View OpenAPI documentation for requests and jump to Swagger UI
 - **Production Safe**: Automatically disabled in production environments
 
 ## Requirements
@@ -112,8 +113,28 @@ Binocs.configure do |config|
   # Optional: Protect the dashboard with basic auth
   config.basic_auth_username = ENV['BINOCS_USERNAME']
   config.basic_auth_password = ENV['BINOCS_PASSWORD']
+
+  # Swagger/OpenAPI integration (for TUI)
+  config.swagger_spec_url = '/api-docs/v1/swagger.yaml'  # OpenAPI spec endpoint
+  config.swagger_ui_url = '/api-docs/index.html'         # Swagger UI URL
 end
 ```
+
+### Swagger Deep Linking (rswag)
+
+To enable jumping directly to specific endpoints in Swagger UI, add deep linking to your rswag configuration:
+
+```ruby
+# config/initializers/rswag_ui.rb
+Rswag::Ui.configure do |c|
+  c.swagger_endpoint '/api-docs/v1/swagger.yaml', 'API V1 Docs'
+
+  # Enable deep linking to specific operations
+  c.config_object['deepLinking'] = true
+end
+```
+
+With this enabled, pressing `o` in the TUI detail view will open Swagger UI and expand the matching endpoint.
 
 ## Usage
 
@@ -200,17 +221,19 @@ bundle exec binocs
 |-----|--------|
 | `Tab` / `]` / `L` | Next tab |
 | `Shift+Tab` / `[` / `H` | Previous tab |
-| `1`-`7` | Jump to tab by number |
+| `1`-`8` | Jump to tab by number |
 | `j` / `↓` | Scroll down |
 | `k` / `↑` | Scroll up |
 | `n` | Next request |
 | `p` | Previous request |
+| `o` | Open Swagger docs in browser |
 | `h` / `Esc` | Go back to list |
 
 ### TUI Features
 
 - **Split-screen layout**: List on left, detail on right when viewing a request
-- **Tabbed detail view**: Overview, Params, Headers, Body, Response, Logs, Exception
+- **Tabbed detail view**: Overview, Params, Headers, Body, Response, Logs, Exception, Swagger
+- **Swagger integration**: View OpenAPI docs for any request and open in browser with `o`
 - **Color-coded**: HTTP methods and status codes are highlighted by type
 - **Auto-refresh**: List automatically updates every 2 seconds
 - **Filtering**: Same filtering capabilities as the web interface
@@ -298,4 +321,3 @@ MIT License. See [MIT-LICENSE](MIT-LICENSE) for details.
 3. Commit your changes (`git commit -am 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-# binocs
