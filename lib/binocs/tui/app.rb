@@ -9,12 +9,14 @@ module Binocs
 
       def initialize(options = {})
         @running = false
-        @mode = :list # :list, :detail, :help, :filter, :search, :agents, :agent_output
+        @mode = :list # :list, :detail, :help, :filter, :search, :agents, :agent_output, :spirit_animal
         @last_refresh = Time.now
         @search_buffer = ''
         @refresh_interval = options[:refresh_interval] || DEFAULT_REFRESH_INTERVAL
         @agents_window = nil
         @agent_output_window = nil
+        @spirit_animal_window = nil
+        @last_key = nil # Track last key for combo detection
       end
 
       def run
@@ -61,10 +63,12 @@ module Binocs
         @agents_window = nil
         @agent_output_window&.close
         @agent_output_window = nil
+        @spirit_animal_window&.close
+        @spirit_animal_window = nil
 
         # Determine if we need split screen (detail view active)
         showing_detail = @mode == :detail ||
-                         (@previous_mode == :detail && (@mode == :help || @mode == :filter))
+                         (@previous_mode == :detail && (@mode == :help || @mode == :filter || @mode == :spirit_animal))
 
         # Preserve list window state before potential recreation
         preserved_state = nil
@@ -164,6 +168,18 @@ module Binocs
             left: 0
           )
         end
+
+        # Spirit animal overlay (centered popup)
+        if @mode == :spirit_animal
+          spirit_height = [25, height - 4].min
+          spirit_width = [50, width - 4].min
+          @spirit_animal_window = SpiritAnimal.new(
+            height: spirit_height,
+            width: spirit_width,
+            top: (height - spirit_height) / 2,
+            left: (width - spirit_width) / 2
+          )
+        end
       end
 
       def load_data
@@ -215,28 +231,49 @@ module Binocs
       end
 
       def draw
+        # Use noutrefresh for all windows, then doupdate once to reduce flicker
         case @mode
         when :list
           @list_window.draw
+          @list_window.noutrefresh
         when :detail
           @list_window.draw
+          @list_window.noutrefresh
           @detail_window.draw
+          @detail_window.noutrefresh
         when :help
           @list_window.draw
+          @list_window.noutrefresh
           @detail_window&.draw
+          @detail_window&.noutrefresh
           @help_window.draw
+          @help_window.noutrefresh
         when :filter
           @list_window.draw
+          @list_window.noutrefresh
           @detail_window&.draw
+          @detail_window&.noutrefresh
           @filter_window.draw
+          @filter_window.noutrefresh
         when :search
           @list_window.draw
+          @list_window.noutrefresh
           draw_search_bar
         when :agents
           @agents_window.draw
+          @agents_window.noutrefresh
         when :agent_output
           @agent_output_window.draw
+          @agent_output_window.noutrefresh
+        when :spirit_animal
+          @list_window.draw
+          @list_window.noutrefresh
+          @detail_window&.draw
+          @detail_window&.noutrefresh
+          @spirit_animal_window.draw
+          @spirit_animal_window.noutrefresh
         end
+        Curses.doupdate
       end
 
       def draw_search_bar
@@ -266,6 +303,7 @@ module Binocs
         when :search then handle_search_input(key)
         when :agents then handle_agents_input(key)
         when :agent_output then handle_agent_output_input(key)
+        when :spirit_animal then handle_spirit_animal_input(key)
         end
       end
 
@@ -379,7 +417,32 @@ module Binocs
           @previous_mode = :detail
           @mode = :filter
           recalculate_layout
+        when 's'
+          # Easter egg: spacebar + s shows spirit animal
+          if @last_key == ' ' || @last_key == 32
+            show_spirit_animal
+          end
+        when ' ', 32 # spacebar
+          # Just track it for the combo
         end
+
+        # Track last key for combos (spacebar + s)
+        @last_key = key
+      end
+
+      def show_spirit_animal
+        return unless @list_window.selected_request
+
+        @previous_mode = :detail
+        @mode = :spirit_animal
+        recalculate_layout
+        @spirit_animal_window.set_request(@list_window.selected_request)
+      end
+
+      def handle_spirit_animal_input(key)
+        # Any key closes the spirit animal popup
+        @mode = @previous_mode || :detail
+        recalculate_layout
       end
 
       def copy_tab_content
@@ -425,6 +488,9 @@ module Binocs
           @list_window.clear_filters
           @filter_window.set_filters({})
           @last_refresh = Time.now
+          # Close filter menu and return to previous view
+          @mode = @previous_mode || :list
+          recalculate_layout
         when 'f' # Toggle filter menu off
           apply_filters
           @mode = @previous_mode || :list

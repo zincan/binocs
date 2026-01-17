@@ -17,8 +17,12 @@ module Binocs
         @win.refresh
       end
 
+      def noutrefresh
+        @win.noutrefresh
+      end
+
       def clear
-        @win.clear
+        @win.erase  # Use erase instead of clear to reduce flicker
       end
 
       def close

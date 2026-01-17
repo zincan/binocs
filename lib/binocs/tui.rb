@@ -15,6 +15,7 @@ require_relative 'tui/help_screen'
 require_relative 'tui/filter_menu'
 require_relative 'tui/agents_list'
 require_relative 'tui/agent_output'
+require_relative 'tui/spirit_animal'
 require_relative 'tui/app'
 
 module Binocs

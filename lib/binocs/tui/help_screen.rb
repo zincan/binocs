@@ -52,6 +52,7 @@ module Binocs
         ['Other', [
           ['r', 'Refresh list'],
           ['?', 'Toggle this help'],
+          ['Space s', 'Spirit animal (detail view)'],
           ['q', 'Quit'],
         ]],
       ].freeze

@@ -274,6 +274,18 @@ end
 
 Binocs uses Rails' parameter filtering, so sensitive params (like `password`) are automatically masked. Cookies are not stored for security reasons.
 
+## Git Ignore
+
+When using the AI Agent feature, Binocs creates temporary files in your project directory that should be added to your `.gitignore`:
+
+```gitignore
+# Binocs AI Agent files
+.binocs-context.md
+.binocs-prompt.md
+```
+
+If you use the worktree mode for agents, the default location is `../binocs-agents/` (a sibling directory to your project), so it won't affect your repo. However, if you configure a custom worktree path inside your project, add that path to `.gitignore` as well.
+
 ## Troubleshooting
 
 ### Requests not appearing
