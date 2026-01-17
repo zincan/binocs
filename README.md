@@ -1,5 +1,7 @@
 # Binocs
 
+[![Gem Version](https://badge.fury.io/rb/binocs.svg)](https://rubygems.org/gems/binocs)
+
 A Laravel Telescope-inspired request monitoring dashboard for Rails applications. Binocs provides real-time visibility into HTTP requests through both a web interface and a terminal UI with vim-style navigation, making debugging and development easier whether you prefer the browser or the command line.
 
 ## Features
@@ -51,10 +53,7 @@ A Laravel Telescope-inspired request monitoring dashboard for Rails applications
 
 ```ruby
 # Gemfile
-gem 'binocs', path: 'path/to/binocs'  # For local development
-
-# Or from GitHub (once published)
-# gem 'binocs', github: 'zincan/binocs'
+gem 'binocs'
 ```
 
 ### 2. Install the gem
