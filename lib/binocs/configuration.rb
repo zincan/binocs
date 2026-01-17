@@ -15,7 +15,9 @@ module Binocs
                   :swagger_spec_url,
                   :swagger_ui_url,
                   :agent_tool,
-                  :agent_worktree_base
+                  :agent_worktree_base,
+                  :login_path,
+                  :authentication_method
 
     def initialize
       @enabled = true
@@ -32,6 +34,8 @@ module Binocs
       @swagger_ui_url = '/api-docs/index.html'
       @agent_tool = :claude_code
       @agent_worktree_base = '../binocs-agents'
+      @login_path = nil  # Auto-detected from Devise if available, or set manually
+      @authentication_method = nil  # e.g., :authenticate_user! or a Proc
     end
 
     def basic_auth_enabled?
@@ -40,6 +44,22 @@ module Binocs
 
     def swagger_enabled?
       swagger_spec_url.present?
+    end
+
+    def resolved_login_path
+      return @login_path if @login_path.present?
+
+      # Try to auto-detect Devise login path
+      if defined?(Devise) && defined?(Rails.application.routes)
+        begin
+          Rails.application.routes.url_helpers.new_user_session_path
+        rescue NoMethodError
+          # Devise might use a different scope
+          '/users/sign_in'
+        end
+      else
+        '/login'
+      end
     end
   end
 end

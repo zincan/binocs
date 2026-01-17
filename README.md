@@ -117,7 +117,39 @@ Binocs.configure do |config|
   # Swagger/OpenAPI integration (for TUI)
   config.swagger_spec_url = '/api-docs/v1/swagger.yaml'  # OpenAPI spec endpoint
   config.swagger_ui_url = '/api-docs/index.html'         # Swagger UI URL
+
+  # Devise authentication (recommended if using Devise with ActionCable)
+  # config.authentication_method = :authenticate_user!
+
+  # Login path for authentication prompts (auto-detected for Devise)
+  # config.login_path = '/users/sign_in'
 end
+```
+
+### Devise Integration
+
+If your application uses Devise for authentication, you can require users to be logged in before accessing Binocs. This ensures the ActionCable WebSocket connection works properly.
+
+```ruby
+# config/initializers/binocs.rb
+Binocs.configure do |config|
+  # Require Devise authentication (recommended)
+  config.authentication_method = :authenticate_user!
+
+  # Or for admin users:
+  # config.authentication_method = :authenticate_admin!
+
+  # Or use a custom proc for more control:
+  # config.authentication_method = -> { authenticate_user! || authenticate_admin! }
+end
+```
+
+With this configured, unauthenticated users will be redirected to your login page, then back to `/binocs` after signing in.
+
+**Fallback behavior**: If authentication is not configured but ActionCable requires it, Binocs will detect the WebSocket failure and display a banner prompting users to sign in. You can customize the login path:
+
+```ruby
+config.login_path = '/users/sign_in'  # Auto-detected from Devise if not set
 ```
 
 ### Swagger Deep Linking (rswag)

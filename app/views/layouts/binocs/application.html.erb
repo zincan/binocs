@@ -56,6 +56,32 @@
       </div>
     </nav>
 
+    <!-- Authentication Required Banner (hidden by default, shown by JS when WebSocket fails) -->
+    <div id="binocs-auth-banner" class="hidden bg-amber-900/50 border-b border-amber-700">
+      <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center">
+            <svg class="h-5 w-5 text-amber-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <p class="text-sm text-amber-200">
+              <strong>Real-time updates unavailable.</strong>
+              Authentication may be required for live streaming.
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <% login_url = "#{Binocs.configuration.resolved_login_path}?redirect_to=#{ERB::Util.url_encode(request.fullpath)}" rescue Binocs.configuration.resolved_login_path %>
+            <a href="<%= login_url %>" class="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500">
+              Sign in
+            </a>
+            <button onclick="document.getElementById('binocs-auth-banner').classList.add('hidden')" class="rounded-md bg-amber-800 px-3 py-1.5 text-sm font-medium text-amber-200 hover:bg-amber-700">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Flash Messages -->
     <% if notice %>
       <div class="bg-green-900/50 border-b border-green-800">

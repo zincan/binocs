@@ -26,6 +26,26 @@ module Binocs
         route "mount Binocs::Engine => '/binocs' unless Rails.env.production?"
       end
 
+      def update_gitignore
+        gitignore_path = Rails.root.join(".gitignore")
+        return unless File.exist?(gitignore_path)
+
+        gitignore_entries = <<~GITIGNORE
+
+          # Binocs AI Agent files
+          .binocs-context.md
+          .binocs-prompt.md
+        GITIGNORE
+
+        gitignore_content = File.read(gitignore_path)
+
+        # Check if already added
+        return if gitignore_content.include?(".binocs-context.md")
+
+        append_to_file ".gitignore", gitignore_entries
+        say "Updated .gitignore with Binocs entries", :green
+      end
+
       def show_readme
         say ""
         say "Binocs installed successfully!", :green
