@@ -11,8 +11,32 @@ A Laravel Telescope-inspired request monitoring dashboard for Rails applications
 - **Performance Insights**: Track request duration and memory usage
 - **Dark Theme UI**: Beautiful, modern interface built with Tailwind CSS
 - **Terminal UI (TUI)**: Vim-style keyboard navigation for console-based monitoring
+- **AI Agent Integration**: Launch Claude Code or OpenCode directly from request context to debug issues
 - **Swagger Integration**: View OpenAPI documentation for requests and jump to Swagger UI
 - **Production Safe**: Automatically disabled in production environments
+
+## Screenshots
+
+### Web Dashboard
+
+![Web Dashboard - Request List](docs/images/html-list-view.jpg)
+*Real-time request monitoring with filtering and status indicators*
+
+![Web Dashboard - Request Details](docs/images/html-detail-view.jpg)
+*Detailed view showing params, headers, body, logs, and exceptions*
+
+### Terminal UI (TUI)
+
+![TUI - Request List](docs/images/tui-list-view.jpg)
+*Vim-style navigation in your terminal*
+
+![TUI - Request Details](docs/images/tui-detail-view.jpg)
+*Split-screen detail view with tabbed content*
+
+### AI Agent Integration
+
+![AI Agent View](docs/images/ai-view.jpg)
+*Launch AI coding agents directly from request context*
 
 ## Requirements
 
@@ -206,9 +230,101 @@ Click on any request to see full details including:
 
 Requests appear in the dashboard in real-time as they're made to your application. The dashboard uses Turbo Streams over ActionCable for instant updates without page refresh.
 
+## How ActionCable Integration Works
+
+Binocs uses Rails' ActionCable and Turbo Streams to provide real-time updates to the dashboard. Here's how the pieces fit together:
+
+### Architecture Overview
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Your App      │     │   Binocs        │     │   Dashboard     │
+│   Request       │────▶│   Middleware    │────▶│   (Browser)     │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                               │                        ▲
+                               │   1. Save to DB        │
+                               │   2. Broadcast         │
+                               ▼                        │
+                        ┌─────────────────┐             │
+                        │   Turbo Stream  │─────────────┘
+                        │   (ActionCable) │  WebSocket
+                        └─────────────────┘
+```
+
+### Request Recording Flow
+
+1. **Middleware Intercepts Request**: The `Binocs::Middleware::RequestRecorder` sits in your Rails middleware stack and captures every HTTP request (except ignored paths like `/assets`, `/cable`, etc.)
+
+2. **Data Collection**: For each request, Binocs records:
+   - HTTP method, path, full URL
+   - Request/response headers and bodies
+   - Parameters (filtered for sensitive data)
+   - Controller and action names
+   - Duration and memory usage
+   - Any exceptions that occurred
+   - Log entries generated during the request
+
+3. **Database Storage**: The request data is saved to the `binocs_requests` table
+
+4. **Real-time Broadcast**: After saving, Binocs broadcasts the new request via Turbo Streams:
+   ```ruby
+   Turbo::StreamsChannel.broadcast_prepend_to(
+     "binocs_requests",
+     target: "requests-list",
+     partial: "binocs/requests/request",
+     locals: { request: request }
+   )
+   ```
+
+5. **Dashboard Updates**: The dashboard subscribes to the `binocs_requests` stream via ActionCable. When a broadcast arrives, Turbo automatically prepends the new request to the list.
+
+### ActionCable Connection
+
+The dashboard establishes a WebSocket connection when you load the page:
+
+```erb
+<%= turbo_stream_from "binocs_requests" %>
+```
+
+This creates a subscription to the `binocs_requests` channel. The connection uses your application's existing ActionCable configuration (`config/cable.yml`).
+
+### Authentication & WebSocket
+
+If your application uses Devise (or similar) with ActionCable authentication, the WebSocket connection requires the user to be authenticated. Binocs handles this in two ways:
+
+1. **Recommended**: Configure `authentication_method` to require login before accessing Binocs (see [Devise Integration](#devise-integration))
+
+2. **Fallback**: If WebSocket fails to connect, Binocs displays a banner prompting the user to sign in. The dashboard still works without real-time updates - you can use the Refresh button.
+
+### Disabling Real-time Updates
+
+The dashboard includes a "Live/Paused" toggle. When paused:
+- The Turbo Stream subscription is temporarily disabled
+- No new requests appear automatically
+- Click "Refresh" to manually load new requests
+
+### Troubleshooting ActionCable
+
+**WebSocket not connecting:**
+- Check that ActionCable is configured in `config/cable.yml`
+- Verify the `/cable` path is accessible
+- Check browser console for WebSocket errors
+- If using Devise, ensure you're authenticated
+
+**Requests not appearing in real-time:**
+- Verify `Turbo::StreamsChannel` is available (requires `turbo-rails` gem)
+- Check Rails logs for `[Binocs] Broadcasting new request` messages
+- Ensure the request path isn't in `config.ignored_paths`
+
+**High latency or missed updates:**
+- Consider using Redis adapter for ActionCable in production-like environments
+- The async adapter (default for development) works fine for local debugging
+
 ## Terminal UI (TUI)
 
 Binocs includes a full-featured terminal interface for monitoring requests directly from your console. Run it alongside your Rails server for a vim-style debugging experience.
+
+![TUI List View](docs/images/tui-list-view.jpg)
 
 ### Starting the TUI
 
@@ -264,12 +380,57 @@ bundle exec binocs
 ### TUI Features
 
 - **Split-screen layout**: List on left, detail on right when viewing a request
-- **Tabbed detail view**: Overview, Params, Headers, Body, Response, Logs, Exception, Swagger
+- **Tabbed detail view**: Overview, Params, Headers, Body, Response, Logs, Exception, Swagger, Agent
+- **AI Agent integration**: Launch coding agents with request context directly from the TUI
 - **Swagger integration**: View OpenAPI docs for any request and open in browser with `o`
 - **Color-coded**: HTTP methods and status codes are highlighted by type
 - **Auto-refresh**: List automatically updates every 2 seconds
 - **Filtering**: Same filtering capabilities as the web interface
 - **Responsive**: Adapts to terminal size changes
+- **Easter egg**: Press `Space` then `s` in detail view to discover your request's spirit animal!
+
+![TUI Detail View](docs/images/tui-detail-view.jpg)
+
+![Spirit Animal Easter Egg](docs/images/spirit-animal.jpg)
+
+## AI Agent Integration
+
+Binocs can launch AI coding agents (Claude Code or OpenCode) directly from the context of a captured request. This is useful when you want an AI to help debug or fix an issue based on the request data.
+
+![AI Agent View](docs/images/ai-view.jpg)
+
+### Using AI Agents in the TUI
+
+1. View a request's details and navigate to the **Agent** tab (press `a` or `9`)
+2. Configure your agent settings (see below)
+3. Type your prompt describing what you want the AI to do
+4. Press `Enter` on an empty line to submit
+5. Watch the AI's output in real-time
+
+The agent receives full context about the request including the HTTP method, path, params, headers, request/response bodies, and any exceptions - giving it everything needed to understand and debug the issue.
+
+### Agent Settings
+
+While in the Agent tab, you can configure how the agent runs:
+
+| Key | Setting | Description |
+|-----|---------|-------------|
+| `t` | **Toggle Tool** | Switch between Claude Code and OpenCode. Claude Code uses `claude` CLI with `--dangerously-skip-permissions` for autonomous operation. OpenCode uses the `opencode` CLI. |
+| `w` | **Toggle Worktree** | Switch between working on your current branch or creating an isolated git worktree. |
+
+**Current Branch Mode** (default): The agent makes changes directly on your current git branch. Quick and simple for small fixes.
+
+**Worktree Mode**: Creates a new git worktree and branch (e.g., `agent/0117-1423-fix-auth`) for the agent to work in. This keeps your current branch clean and lets you review changes before merging. Press `w` to enable, then enter a name for the worktree/branch.
+
+### Configuration
+
+```ruby
+# config/initializers/binocs.rb
+Binocs.configure do |config|
+  config.agent_tool = :claude_code  # or :opencode
+  config.agent_worktree_base = '../binocs-agents'  # where worktrees are created
+end
+```
 
 ## Rake Tasks
 

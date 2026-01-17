@@ -1,6 +1,6 @@
 <%= turbo_frame_tag dom_id(request) do %>
   <%= link_to binocs.request_path(request.uuid), class: "block hover:bg-slate-700/50 transition-colors duration-150", data: { turbo_frame: "_top" } do %>
-    <div class="px-4 py-3">
+    <div class="px-4 py-3 pr-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4 min-w-0">
           <!-- Method Badge -->
@@ -36,9 +36,9 @@
           <% end %>
         </div>
 
-        <div class="flex items-center space-x-4 text-sm text-slate-400 flex-shrink-0">
+        <div class="flex items-center space-x-4 text-sm text-slate-400 flex-shrink-0 pl-4">
           <!-- Duration -->
-          <span title="Duration">
+          <span title="Duration" class="whitespace-nowrap">
             <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
@@ -46,12 +46,12 @@
           </span>
 
           <!-- IP Address -->
-          <span title="IP Address" class="hidden lg:inline">
+          <span title="IP Address" class="hidden lg:inline whitespace-nowrap">
             <%= request.ip_address %>
           </span>
 
           <!-- Timestamp -->
-          <span title="<%= request.created_at %>">
+          <span title="<%= request.created_at %>" class="whitespace-nowrap">
             <%= time_ago_in_words(request.created_at) %> ago
           </span>
         </div>

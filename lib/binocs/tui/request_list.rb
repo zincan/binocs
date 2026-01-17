@@ -134,8 +134,8 @@ module Binocs
         y = 1
         x = 1
 
-        # Header - AI column + rest
-        path_width = [content_width - 58, 20].max
+        # Header - AI column + rest (leave room for time column ~10 chars)
+        path_width = [content_width - 65, 15].max
         header = "AI METHOD  STATUS PATH#{' ' * (path_width - 4)} CONTROLLER                DURATION  TIME"
         write(y, x, header[0, content_width], Colors::HEADER, Curses::A_BOLD)
 
@@ -195,8 +195,8 @@ module Binocs
         end
         x += 7
 
-        # Path (variable width)
-        path_width = [content_width - 58, 20].max
+        # Path (variable width - leave room for time column ~10 chars)
+        path_width = [content_width - 65, 15].max
         path_text = truncate(request.path, path_width).ljust(path_width)
         write(y, x, path_text, is_selected ? Colors::SELECTED : Colors::NORMAL)
         x += path_width + 1
