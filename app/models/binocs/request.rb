@@ -42,6 +42,12 @@ module Binocs
     }
 
     # Instance methods
+
+    # Alias for 'method' to avoid conflict with Object#method
+    def http_method
+      read_attribute(:method)
+    end
+
     def success?
       status_code.present? && status_code >= 200 && status_code < 300
     end
@@ -108,6 +114,13 @@ module Binocs
       return path if path.length <= 50
 
       "#{path[0, 47]}..."
+    end
+
+    def full_url
+      # Construct URL from host header if available
+      host = request_headers&.dig('Host') || request_headers&.dig('host') || 'localhost'
+      scheme = request_headers&.dig('X-Forwarded-Proto') || 'http'
+      "#{scheme}://#{host}#{path}"
     end
 
     def controller_action

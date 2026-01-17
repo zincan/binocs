@@ -13,7 +13,9 @@ module Binocs
                   :record_request_body,
                   :record_response_body,
                   :swagger_spec_url,
-                  :swagger_ui_url
+                  :swagger_ui_url,
+                  :agent_tool,
+                  :agent_worktree_base
 
     def initialize
       @enabled = true
@@ -28,6 +30,8 @@ module Binocs
       @record_response_body = true
       @swagger_spec_url = '/api-docs'
       @swagger_ui_url = '/api-docs/index.html'
+      @agent_tool = :claude_code
+      @agent_worktree_base = '../binocs-agents'
     end
 
     def basic_auth_enabled?

@@ -9,10 +9,12 @@ module Binocs
 
       def initialize(options = {})
         @running = false
-        @mode = :list # :list, :detail, :help, :filter, :search
+        @mode = :list # :list, :detail, :help, :filter, :search, :agents, :agent_output
         @last_refresh = Time.now
         @search_buffer = ''
         @refresh_interval = options[:refresh_interval] || DEFAULT_REFRESH_INTERVAL
+        @agents_window = nil
+        @agent_output_window = nil
       end
 
       def run
@@ -55,9 +57,14 @@ module Binocs
         @help_window = nil
         @filter_window&.close
         @filter_window = nil
+        @agents_window&.close
+        @agents_window = nil
+        @agent_output_window&.close
+        @agent_output_window = nil
 
         # Determine if we need split screen (detail view active)
-        showing_detail = @mode == :detail || (@previous_mode == :detail && (@mode == :help || @mode == :filter))
+        showing_detail = @mode == :detail ||
+                         (@previous_mode == :detail && (@mode == :help || @mode == :filter))
 
         # Preserve list window state before potential recreation
         preserved_state = nil
@@ -114,8 +121,8 @@ module Binocs
 
         # Help overlay (centered)
         if @mode == :help
-          help_height = [22, height - 4].min
-          help_width = [60, width - 4].min
+          help_height = [32, height - 4].min
+          help_width = [65, width - 4].min
           @help_window = HelpScreen.new(
             height: help_height,
             width: help_width,
@@ -136,6 +143,27 @@ module Binocs
           )
           @filter_window.set_filters(@list_window.filters)
         end
+
+        # Agents list (full screen)
+        if @mode == :agents
+          @agents_window = AgentsList.new(
+            height: height,
+            width: width,
+            top: 0,
+            left: 0
+          )
+          @agents_window.load_agents
+        end
+
+        # Agent output viewer (full screen)
+        if @mode == :agent_output
+          @agent_output_window = AgentOutput.new(
+            height: height,
+            width: width,
+            top: 0,
+            left: 0
+          )
+        end
       end
 
       def load_data
@@ -155,6 +183,26 @@ module Binocs
           if @mode == :list && Time.now - @last_refresh > @refresh_interval
             load_data
             @last_refresh = Time.now
+          end
+
+          # Auto-refresh agents list and output
+          if @mode == :agents && Time.now - @last_refresh > @refresh_interval
+            @agents_window&.load_agents
+            @last_refresh = Time.now
+          end
+
+          if @mode == :agent_output && Time.now - @last_refresh > 1 # Faster refresh for output
+            @agent_output_window&.load_output
+            @last_refresh = Time.now
+          end
+
+          # Auto-refresh Agent tab when agent is running
+          if @mode == :detail && @detail_window&.agent_tab?
+            agent = @detail_window.current_agent
+            if agent&.running? && Time.now - @last_refresh > 1
+              @detail_window.build_content
+              @last_refresh = Time.now
+            end
           end
         end
       end
@@ -184,6 +232,10 @@ module Binocs
         when :search
           @list_window.draw
           draw_search_bar
+        when :agents
+          @agents_window.draw
+        when :agent_output
+          @agent_output_window.draw
         end
       end
 
@@ -212,6 +264,8 @@ module Binocs
         when :help then handle_help_input(key)
         when :filter then handle_filter_input(key)
         when :search then handle_search_input(key)
+        when :agents then handle_agents_input(key)
+        when :agent_output then handle_agent_output_input(key)
         end
       end
 
@@ -227,9 +281,9 @@ module Binocs
           @list_window.go_to_top
         when 'G', Curses::KEY_END
           @list_window.go_to_bottom
-        when Curses::KEY_NPAGE, 4 # Ctrl+D
+        when Curses::KEY_NPAGE, 4, 14 # Ctrl+D, Ctrl+N
           @list_window.page_down
-        when Curses::KEY_PPAGE, 21 # Ctrl+U
+        when Curses::KEY_PPAGE, 21, 16 # Ctrl+U, Ctrl+P
           @list_window.page_up
         when Curses::KEY_ENTER, 10, 13, 'l'
           enter_detail_mode
@@ -253,10 +307,27 @@ module Binocs
           delete_selected_request
         when 'D'
           delete_all_requests
+        when 'a'
+          enter_agents_mode
         end
       end
 
       def handle_detail_input(key)
+        # First, let the Agent tab handle its own input
+        if @detail_window&.agent_tab?
+          handled = @detail_window.handle_agent_key(key)
+          if handled
+            # Refresh content if agent tab handled the input
+            @detail_window.build_content if @detail_window.agent_tab?
+            return
+          end
+
+          # If agent input or worktree input is active, don't process other keys
+          if @detail_window.agent_input_active || @detail_window.agent_worktree_input_active
+            return # Don't process other keys while typing
+          end
+        end
+
         case key
         when 'q', 'Q'
           @running = false
@@ -268,14 +339,16 @@ module Binocs
           @detail_window.scroll_down
         when 'k', Curses::KEY_UP
           @detail_window.scroll_up
-        when Curses::KEY_NPAGE, 4 # Ctrl+D
+        when Curses::KEY_NPAGE, 4, 14 # Ctrl+D, Ctrl+N
           @detail_window.page_down
-        when Curses::KEY_PPAGE, 21 # Ctrl+U
+        when Curses::KEY_PPAGE, 21, 16 # Ctrl+U, Ctrl+P
           @detail_window.page_up
         when 9, ']', 'L' # Tab, ], L - next tab
           @detail_window.next_tab
+          update_cursor_visibility
         when 353, '[', 'H' # Shift+Tab, [, H - prev tab
           @detail_window.prev_tab
+          update_cursor_visibility
         when '1' then @detail_window.go_to_tab(0) # Overview
         when '2' then @detail_window.go_to_tab(1) # Params
         when '3' then @detail_window.go_to_tab(2) # Headers
@@ -284,8 +357,14 @@ module Binocs
         when '6' then @detail_window.go_to_tab(5) # Logs
         when '7' then @detail_window.go_to_tab(6) # Exception
         when '8' then @detail_window.go_to_tab(7) # Swagger
+        when '9', 'a'
+          @detail_window.go_to_tab(8) # Agent
+          @detail_window.agent_input_active = true
+          Curses.curs_set(1)
         when 'o', 'O'
           open_swagger_in_browser
+        when 'c'
+          copy_tab_content
         when 'n', 'J' # Next request (n or Shift+J)
           @list_window.move_down
           update_detail_request
@@ -300,6 +379,23 @@ module Binocs
           @previous_mode = :detail
           @mode = :filter
           recalculate_layout
+        end
+      end
+
+      def copy_tab_content
+        return unless @detail_window
+
+        text = @detail_window.content_as_text
+        if @detail_window.copy_to_clipboard(text)
+          # Brief flash to indicate copy succeeded - could show a message
+        end
+      end
+
+      def update_cursor_visibility
+        if @detail_window&.agent_tab? && (@detail_window.agent_input_active || @detail_window.agent_worktree_input_active)
+          Curses.curs_set(1)
+        else
+          Curses.curs_set(0)
         end
       end
 
@@ -348,6 +444,56 @@ module Binocs
           @search_buffer += key if key.length == 1 && key.ord >= 32
         when Integer
           @search_buffer += key.chr if key >= 32 && key < 127
+        end
+      end
+
+      def handle_agents_input(key)
+        case key
+        when 'q', 27 # q or Esc
+          exit_agents_mode
+        when 'j', Curses::KEY_DOWN
+          @agents_window.move_down
+        when 'k', Curses::KEY_UP
+          @agents_window.move_up
+        when 'g', Curses::KEY_HOME
+          @agents_window.go_to_top
+        when 'G', Curses::KEY_END
+          @agents_window.go_to_bottom
+        when Curses::KEY_ENTER, 10, 13
+          view_agent_request
+        when 'l'
+          view_agent_output
+        when 'd'
+          delete_selected_agent
+        when 'o'
+          open_agent_worktree
+        when 'r'
+          @agents_window.load_agents
+        when '?'
+          @previous_mode = :agents
+          @mode = :help
+          recalculate_layout
+        end
+      end
+
+      def handle_agent_output_input(key)
+        case key
+        when 'q', 27 # q or Esc
+          exit_agent_output_mode
+        when 'j', Curses::KEY_DOWN
+          @agent_output_window.scroll_down
+        when 'k', Curses::KEY_UP
+          @agent_output_window.scroll_up
+        when Curses::KEY_NPAGE, 4, 14 # Ctrl+D, Ctrl+N
+          @agent_output_window.page_down
+        when Curses::KEY_PPAGE, 21, 16 # Ctrl+U, Ctrl+P
+          @agent_output_window.page_up
+        when 'g', Curses::KEY_HOME
+          @agent_output_window.go_to_top
+        when 'G', Curses::KEY_END
+          @agent_output_window.go_to_bottom
+        when 'r'
+          @agent_output_window.load_output
         end
       end
 
@@ -426,6 +572,75 @@ module Binocs
         else
           system("xdg-open", url)
         end
+      end
+
+      # Agent mode methods
+      def enter_agents_mode
+        @previous_mode = @mode
+        @mode = :agents
+        recalculate_layout
+      end
+
+      def exit_agents_mode
+        @mode = @previous_mode || :list
+        @previous_mode = nil
+        recalculate_layout
+      end
+
+      def view_agent_request
+        agent = @agents_window&.selected_agent
+        return unless agent
+
+        # Find the request in the list and select it
+        request = Binocs::Request.find_by(id: agent.request_id)
+        return unless request
+
+        # Find the index of this request in the current list
+        @list_window.load_requests
+        request_index = @list_window.requests.find_index { |r| r.id == request.id }
+
+        if request_index
+          @list_window.selected_index = request_index
+
+          # Enter detail mode and go to Agent tab with input active
+          @mode = :detail
+          recalculate_layout
+          @list_window.load_requests
+          @detail_window.set_request(request)
+          @detail_window.go_to_tab(8) # Agent tab
+          @detail_window.agent_input_active = true
+          Curses.curs_set(1)
+        end
+      end
+
+      def view_agent_output
+        agent = @agents_window&.selected_agent
+        return unless agent
+
+        @previous_mode = :agents
+        @mode = :agent_output
+        recalculate_layout
+        @agent_output_window.set_agent(agent)
+      end
+
+      def exit_agent_output_mode
+        @mode = :agents
+        recalculate_layout
+      end
+
+      def delete_selected_agent
+        agent = @agents_window&.selected_agent
+        return unless agent
+
+        Binocs::AgentManager.cleanup(agent)
+        @agents_window.load_agents
+      end
+
+      def open_agent_worktree
+        agent = @agents_window&.selected_agent
+        return unless agent
+
+        Binocs::AgentManager.open_worktree(agent)
       end
 
       def restore_list_state(state)

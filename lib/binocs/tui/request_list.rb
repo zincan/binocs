@@ -134,9 +134,9 @@ module Binocs
         y = 1
         x = 1
 
-        # Header
-        path_width = [content_width - 55, 20].max
-        header = "METHOD  STATUS PATH#{' ' * (path_width - 4)} CONTROLLER                DURATION  TIME"
+        # Header - AI column + rest
+        path_width = [content_width - 58, 20].max
+        header = "AI METHOD  STATUS PATH#{' ' * (path_width - 4)} CONTROLLER                DURATION  TIME"
         write(y, x, header[0, content_width], Colors::HEADER, Curses::A_BOLD)
 
         # Draw separator
@@ -167,6 +167,16 @@ module Binocs
 
         x = 1
 
+        # Agent indicator
+        agents = Binocs::Agent.for_request(request.id)
+        if agents.any?
+          running = agents.any?(&:running?)
+          indicator = running ? '●' : '○'
+          color = running ? Colors::STATUS_SUCCESS : Colors::MUTED
+          write(y, x, indicator, is_selected ? Colors::SELECTED : color, Curses::A_BOLD)
+        end
+        x += 3
+
         # Method (simple colored text for now)
         method_str = request.method.to_s.upcase.ljust(7)
         if is_selected
@@ -186,7 +196,7 @@ module Binocs
         x += 7
 
         # Path (variable width)
-        path_width = [content_width - 55, 20].max
+        path_width = [content_width - 58, 20].max
         path_text = truncate(request.path, path_width).ljust(path_width)
         write(y, x, path_text, is_selected ? Colors::SELECTED : Colors::NORMAL)
         x += path_width + 1
