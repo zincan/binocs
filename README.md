@@ -2,6 +2,8 @@
 
 [![Gem Version](https://badge.fury.io/rb/binocs.svg)](https://rubygems.org/gems/binocs)
 
+![A picture of a train conductor with binoculars](https://cdn.zincan.com/952b429896eb12e5e36a68a43a9cdc16.jpg)
+
 A Laravel Telescope-inspired request monitoring dashboard for Rails applications. Binocs provides real-time visibility into HTTP requests through both a web interface and a terminal UI with vim-style navigation, making debugging and development easier whether you prefer the browser or the command line.
 
 *Binocs is short for binoculars — the trusty tool train engineers and conductors used to look down the tracks and inspect what's coming. Now you can do the same for your Rails requests.*
@@ -71,6 +73,7 @@ bin/rails generate binocs:install
 ```
 
 This will:
+
 - Copy the migration file
 - Create an initializer at `config/initializers/binocs.rb`
 - Add the route to mount the engine
@@ -268,6 +271,7 @@ Binocs uses Rails' ActionCable and Turbo Streams to provide real-time updates to
 3. **Database Storage**: The request data is saved to the `binocs_requests` table
 
 4. **Real-time Broadcast**: After saving, Binocs broadcasts the new request via Turbo Streams:
+
    ```ruby
    Turbo::StreamsChannel.broadcast_prepend_to(
      "binocs_requests",
@@ -300,6 +304,7 @@ If your application uses Devise (or similar) with ActionCable authentication, th
 ### Disabling Real-time Updates
 
 The dashboard includes a "Live/Paused" toggle. When paused:
+
 - The Turbo Stream subscription is temporarily disabled
 - No new requests appear automatically
 - Click "Refresh" to manually load new requests
@@ -307,17 +312,20 @@ The dashboard includes a "Live/Paused" toggle. When paused:
 ### Troubleshooting ActionCable
 
 **WebSocket not connecting:**
+
 - Check that ActionCable is configured in `config/cable.yml`
 - Verify the `/cable` path is accessible
 - Check browser console for WebSocket errors
 - If using Devise, ensure you're authenticated
 
 **Requests not appearing in real-time:**
+
 - Verify `Turbo::StreamsChannel` is available (requires `turbo-rails` gem)
 - Check Rails logs for `[Binocs] Broadcasting new request` messages
 - Ensure the request path isn't in `config.ignored_paths`
 
 **High latency or missed updates:**
+
 - Consider using Redis adapter for ActionCable in production-like environments
 - The async adapter (default for development) works fine for local debugging
 
