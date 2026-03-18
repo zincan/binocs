@@ -43,6 +43,7 @@
             </div>
             <div class="ml-10 flex items-baseline space-x-4">
               <%= link_to "Requests", binocs.requests_path, class: "rounded-md px-3 py-2 text-sm font-medium #{current_page?(binocs.requests_path) ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}" %>
+              <%= link_to "Sequence", binocs.sequence_requests_path, class: "rounded-md px-3 py-2 text-sm font-medium #{current_page?(binocs.sequence_requests_path) ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}" %>
             </div>
           </div>
           <div class="flex items-center space-x-4">

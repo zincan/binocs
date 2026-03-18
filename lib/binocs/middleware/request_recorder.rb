@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "securerandom"
+require "digest"
 
 module Binocs
   module Middleware
@@ -55,7 +56,8 @@ module Binocs
           ip_address: request.remote_ip,
           session_id: request.session.id&.to_s,
           content_type: request.content_type,
-          request_body: extract_request_body(request)
+          request_body: extract_request_body(request),
+          client_identifier: compute_client_identifier(request)
         }
       end
 
@@ -105,7 +107,8 @@ module Binocs
           session_id: record[:session_id],
           logs: record[:logs],
           exception: record[:exception],
-          memory_delta: record[:memory_delta]
+          memory_delta: record[:memory_delta],
+          client_identifier: record[:client_identifier]
         )
 
         broadcast_new_request(record)
@@ -215,6 +218,22 @@ module Binocs
         "#{route[:controller]}##{route[:action]}"
       rescue
         nil
+      end
+
+      def compute_client_identifier(request)
+        session_id = request.session.id&.to_s
+        if session_id.present?
+          return "session:#{session_id}"
+        end
+
+        auth_header = request.headers["Authorization"]
+        if auth_header.present?
+          return "auth:#{Digest::SHA256.hexdigest(auth_header)[0, 16]}"
+        end
+
+        "ip:#{request.remote_ip}"
+      rescue
+        "ip:#{request.remote_ip rescue '0.0.0.0'}"
       end
 
       def truncate_value(value)

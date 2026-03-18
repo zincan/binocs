@@ -47,6 +47,18 @@ module Binocs
       value.to_s
     end
 
+    def client_label(identifier)
+      return "Unknown" if identifier.blank?
+
+      prefix, value = identifier.split(":", 2)
+      case prefix
+      when "session" then "Session #{value.to_s[0, 8]}"
+      when "auth" then "Auth #{value.to_s[0, 8]}"
+      when "ip" then "IP #{value}"
+      else identifier
+      end
+    end
+
     def format_body(body)
       return body if body.nil?
 
@@ -55,6 +67,26 @@ module Binocs
         JSON.pretty_generate(parsed)
       rescue JSON::ParserError
         body
+      end
+    end
+
+    def relative_time(time)
+      return "N/A" if time.nil?
+
+      seconds = (Time.current - time).to_i
+      return "just now" if seconds < 5
+
+      minutes = seconds / 60
+      hours = minutes / 60
+
+      if hours >= 3
+        time.strftime("%b %d, %H:%M:%S")
+      elsif hours >= 1
+        "#{hours} #{hours == 1 ? 'hour' : 'hours'} ago"
+      elsif minutes >= 1
+        "#{minutes} #{minutes == 1 ? 'minute' : 'minutes'} ago"
+      else
+        "#{seconds} #{seconds == 1 ? 'second' : 'seconds'} ago"
       end
     end
   end

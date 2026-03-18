@@ -6,6 +6,7 @@ Binocs::Engine.routes.draw do
   resources :requests, only: [:index, :show, :destroy] do
     collection do
       delete :clear
+      get :sequence
     end
   end
 end

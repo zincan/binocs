@@ -9,13 +9,14 @@ module Binocs
 
       def initialize(options = {})
         @running = false
-        @mode = :list # :list, :detail, :help, :filter, :search, :agents, :agent_output, :spirit_animal
+        @mode = :list # :list, :detail, :help, :filter, :search, :agents, :agent_output, :spirit_animal, :sequence
         @last_refresh = Time.now
         @search_buffer = ''
         @refresh_interval = options[:refresh_interval] || DEFAULT_REFRESH_INTERVAL
         @agents_window = nil
         @agent_output_window = nil
         @spirit_animal_window = nil
+        @sequence_window = nil
         @last_key = nil # Track last key for combo detection
       end
 
@@ -65,6 +66,8 @@ module Binocs
         @agent_output_window = nil
         @spirit_animal_window&.close
         @spirit_animal_window = nil
+        @sequence_window&.close
+        @sequence_window = nil
 
         # Determine if we need split screen (detail view active)
         showing_detail = @mode == :detail ||
@@ -169,6 +172,17 @@ module Binocs
           )
         end
 
+        # Sequence diagram (full screen)
+        if @mode == :sequence
+          @sequence_window = SequenceDiagram.new(
+            height: height,
+            width: width,
+            top: 0,
+            left: 0
+          )
+          @sequence_window.load_data
+        end
+
         # Spirit animal overlay (centered popup)
         if @mode == :spirit_animal
           spirit_height = [25, height - 4].min
@@ -198,6 +212,12 @@ module Binocs
           # Auto-refresh in list mode
           if @mode == :list && Time.now - @last_refresh > @refresh_interval
             load_data
+            @last_refresh = Time.now
+          end
+
+          # Auto-refresh sequence view
+          if @mode == :sequence && Time.now - @last_refresh > @refresh_interval
+            @sequence_window&.load_data
             @last_refresh = Time.now
           end
 
@@ -265,6 +285,9 @@ module Binocs
         when :agent_output
           @agent_output_window.draw
           @agent_output_window.noutrefresh
+        when :sequence
+          @sequence_window.draw
+          @sequence_window.noutrefresh
         when :spirit_animal
           @list_window.draw
           @list_window.noutrefresh
@@ -301,6 +324,7 @@ module Binocs
         when :help then handle_help_input(key)
         when :filter then handle_filter_input(key)
         when :search then handle_search_input(key)
+        when :sequence then handle_sequence_input(key)
         when :agents then handle_agents_input(key)
         when :agent_output then handle_agent_output_input(key)
         when :spirit_animal then handle_spirit_animal_input(key)
@@ -347,6 +371,8 @@ module Binocs
           delete_all_requests
         when 'a'
           enter_agents_mode
+        when 's'
+          enter_sequence_mode
         end
       end
 
@@ -637,6 +663,67 @@ module Binocs
           system("open", url)
         else
           system("xdg-open", url)
+        end
+      end
+
+      # Sequence mode methods
+      def enter_sequence_mode
+        @previous_mode = @mode
+        @mode = :sequence
+        recalculate_layout
+      end
+
+      def exit_sequence_mode
+        @mode = @previous_mode || :list
+        @previous_mode = nil
+        recalculate_layout
+      end
+
+      def handle_sequence_input(key)
+        case key
+        when 'q', 'Q'
+          @running = false
+        when 27, 'h' # Esc or h
+          exit_sequence_mode
+        when 'j', Curses::KEY_DOWN
+          @sequence_window.move_down
+        when 'k', Curses::KEY_UP
+          @sequence_window.move_up
+        when 'g', Curses::KEY_HOME
+          @sequence_window.go_to_top
+        when 'G', Curses::KEY_END
+          @sequence_window.go_to_bottom
+        when Curses::KEY_NPAGE, 4, 14
+          @sequence_window.page_down
+        when Curses::KEY_PPAGE, 21, 16
+          @sequence_window.page_up
+        when ']'
+          @sequence_window.next_client
+        when '['
+          @sequence_window.prev_client
+        when Curses::KEY_ENTER, 10, 13, 'l'
+          view_sequence_request
+        when 'r'
+          @sequence_window.load_data
+        when '?'
+          @previous_mode = :sequence
+          @mode = :help
+          recalculate_layout
+        end
+      end
+
+      def view_sequence_request
+        request = @sequence_window&.selected_request
+        return unless request
+
+        # Switch to list mode and open the request detail
+        @list_window.load_requests
+        request_index = @list_window.requests.find_index { |r| r.id == request.id }
+        if request_index
+          @list_window.selected_index = request_index
+          @mode = :detail
+          recalculate_layout
+          @detail_window.set_request(request)
         end
       end
 

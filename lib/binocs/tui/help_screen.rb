@@ -44,6 +44,13 @@ module Binocs
           ['o', 'Open worktree folder'],
           ['r', 'Refresh agents list'],
         ]],
+        ['Sequence View', [
+          ['s', 'Enter sequence diagram'],
+          ['[ / ]', 'Switch client'],
+          ['j / k', 'Navigate requests'],
+          ['Enter / l', 'View request detail'],
+          ['Esc / h', 'Return to list'],
+        ]],
         ['Filtering', [
           ['/', 'Search by path'],
           ['f', 'Open filter menu'],

@@ -39,6 +39,12 @@ module Binocs
       end
     end
 
+    def sequence
+      @client_identifiers = Request.client_identifiers
+      @selected_client = params[:client].presence || @client_identifiers.first
+      @requests = Request.by_client(@selected_client).for_sequence.limit(200)
+    end
+
     def clear
       Request.delete_all
 

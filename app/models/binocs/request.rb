@@ -32,6 +32,8 @@ module Binocs
     scope :without_exception, -> { where(exception: nil) }
     scope :slow, ->(threshold_ms = 1000) { where("duration_ms > ?", threshold_ms) }
     scope :by_ip, ->(ip) { where(ip_address: ip) if ip.present? }
+    scope :by_client, ->(identifier) { where(client_identifier: identifier) if identifier.present? }
+    scope :for_sequence, -> { order(created_at: :asc) }
     scope :recent, -> { order(created_at: :desc) }
     scope :today, -> { where("created_at >= ?", Time.current.beginning_of_day) }
     scope :last_hour, -> { where("created_at >= ?", 1.hour.ago) }
@@ -172,7 +174,26 @@ module Binocs
       controller_name.demodulize.sub(/Controller$/, "").titleize
     end
 
+    def client_label
+      return "Unknown" if client_identifier.blank?
+
+      prefix, value = client_identifier.split(":", 2)
+      case prefix
+      when "session" then "Session #{value.to_s[0, 8]}"
+      when "auth" then "Auth #{value.to_s[0, 8]}"
+      when "ip" then "IP #{value}"
+      else client_identifier
+      end
+    end
+
     # Class methods for statistics
+    def self.client_identifiers
+      where.not(client_identifier: nil)
+        .group(:client_identifier)
+        .order(Arel.sql("MAX(created_at) DESC"))
+        .pluck(:client_identifier)
+    end
+
     def self.average_duration
       average(:duration_ms)&.round(2)
     end
