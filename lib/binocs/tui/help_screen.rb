@@ -49,7 +49,16 @@ module Binocs
           ['[ / ]', 'Switch client'],
           ['j / k', 'Navigate requests'],
           ['Enter / l', 'View request detail'],
-          ['Esc / h', 'Return to list'],
+          ['c', 'Copy screen contents'],
+          ['Esc / h / ←', 'Return to list'],
+        ]],
+        ['Endpoints View', [
+          ['e', 'Enter endpoints view'],
+          ['j / k', 'Navigate endpoints'],
+          ['Enter / l', 'Filter list to endpoint'],
+          ['c', 'Copy screen contents'],
+          ['r', 'Refresh data'],
+          ['Esc / h / ←', 'Return to list'],
         ]],
         ['Filtering', [
           ['/', 'Search by path'],

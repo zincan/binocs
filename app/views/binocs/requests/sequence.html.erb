@@ -21,7 +21,7 @@
 
   <% if @requests.any? %>
     <!-- Sequence Diagram -->
-    <div class="bg-slate-800 rounded-lg border border-slate-700 p-6 overflow-x-auto" x-data="{ expanded: null }">
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-6" x-data="{ expanded: null }">
       <!-- Lifeline Headers -->
       <div class="flex mb-6">
         <div class="w-1/2 text-center">
@@ -117,6 +117,10 @@
                   <% if request.request_headers.blank? && (request.params.blank? || request.params.empty?) %>
                     <div class="text-slate-500 italic">No headers or parameters recorded.</div>
                   <% end %>
+
+                  <div class="mt-3 pt-2 border-t border-slate-700 text-center">
+                    <span class="text-xs text-slate-500">Click to expand full details</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -187,6 +191,10 @@
                   <% if request.response_headers.blank? && !has_body && !request.has_exception? %>
                     <div class="text-slate-500 italic">No response details recorded.</div>
                   <% end %>
+
+                  <div class="mt-3 pt-2 border-t border-slate-700 text-center">
+                    <span class="text-xs text-slate-500">Click to expand full details</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -397,30 +405,7 @@
                   <% if request.logs.present? && request.logs.any? %>
                     <div class="space-y-3">
                       <% request.logs.each do |log| %>
-                        <div class="bg-slate-900 rounded p-4">
-                          <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-medium text-emerald-400 uppercase"><%= log["type"] %></span>
-                            <span class="text-xs text-slate-500"><%= log["timestamp"] %></span>
-                          </div>
-                          <% if log["type"] == "controller" %>
-                            <div class="text-sm text-white">
-                              <span class="text-slate-400">Controller:</span> <%= log["controller"] %>#<%= log["action"] %>
-                              <% if log["view_runtime"] %>
-                                <span class="ml-4 text-slate-400">View:</span> <%= log["view_runtime"] %>ms
-                              <% end %>
-                              <% if log["db_runtime"] %>
-                                <span class="ml-4 text-slate-400">DB:</span> <%= log["db_runtime"] %>ms
-                              <% end %>
-                            </div>
-                          <% elsif log["type"] == "redirect" %>
-                            <div class="text-sm text-white">
-                              <span class="text-slate-400">Redirect to:</span> <%= log["location"] %>
-                              <span class="ml-4 text-slate-400">Status:</span> <%= log["status"] %>
-                            </div>
-                          <% else %>
-                            <pre class="text-sm text-white"><%= format_value(log) %></pre>
-                          <% end %>
-                        </div>
+                        <%= render partial: "binocs/requests/log_entry", locals: { log: log } %>
                       <% end %>
                     </div>
                   <% else %>

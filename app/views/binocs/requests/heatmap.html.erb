@@ -1,0 +1,179 @@
+<div class="space-y-6" x-data="{ viewMode: '<%= @view_mode %>' }">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-semibold text-white">API Heatmap</h1>
+      <p class="text-sm text-slate-400 mt-1"><%= @total_requests %> total requests across <%= @endpoint_groups.values.flatten.size %> endpoints</p>
+    </div>
+
+    <!-- View mode toggle -->
+    <div class="inline-flex rounded-lg bg-slate-800 p-1">
+      <button @click="viewMode = 'frequency'"
+              :class="viewMode === 'frequency' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+              class="rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200">
+        Frequency
+      </button>
+      <button @click="viewMode = 'latency'"
+              :class="viewMode === 'latency' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+              class="rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200">
+        Latency
+      </button>
+      <button @click="viewMode = 'errors'"
+              :class="viewMode === 'errors' ? 'bg-red-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+              class="rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200">
+        Errors
+      </button>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="bg-slate-800 rounded-lg border border-slate-700 px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-6 text-xs text-slate-400">
+      <!-- Frequency legend -->
+      <div x-show="viewMode === 'frequency'" class="flex items-center space-x-2">
+        <span>Low traffic</span>
+        <div class="flex space-x-0.5">
+          <div class="w-5 h-3 rounded-sm bg-indigo-950"></div>
+          <div class="w-5 h-3 rounded-sm bg-indigo-900"></div>
+          <div class="w-5 h-3 rounded-sm bg-indigo-700"></div>
+          <div class="w-5 h-3 rounded-sm bg-indigo-500"></div>
+          <div class="w-5 h-3 rounded-sm bg-indigo-400"></div>
+        </div>
+        <span>High traffic</span>
+      </div>
+      <!-- Latency legend -->
+      <div x-show="viewMode === 'latency'" x-cloak class="flex items-center space-x-2">
+        <span>Fast</span>
+        <div class="flex space-x-0.5">
+          <div class="w-5 h-3 rounded-sm bg-emerald-900"></div>
+          <div class="w-5 h-3 rounded-sm bg-emerald-700"></div>
+          <div class="w-5 h-3 rounded-sm bg-yellow-700"></div>
+          <div class="w-5 h-3 rounded-sm bg-orange-600"></div>
+          <div class="w-5 h-3 rounded-sm bg-red-500"></div>
+        </div>
+        <span>Slow</span>
+      </div>
+      <!-- Errors legend -->
+      <div x-show="viewMode === 'errors'" x-cloak class="flex items-center space-x-2">
+        <span>No errors</span>
+        <div class="flex space-x-0.5">
+          <div class="w-5 h-3 rounded-sm bg-slate-800"></div>
+          <div class="w-5 h-3 rounded-sm bg-red-950"></div>
+          <div class="w-5 h-3 rounded-sm bg-red-800"></div>
+          <div class="w-5 h-3 rounded-sm bg-red-600"></div>
+          <div class="w-5 h-3 rounded-sm bg-red-400"></div>
+        </div>
+        <span>High errors</span>
+      </div>
+    </div>
+    <div class="text-xs text-slate-500">
+      Grouped by API tag / resource
+    </div>
+  </div>
+
+  <% if @endpoint_groups.any? %>
+    <!-- Endpoint groups -->
+    <% @endpoint_groups.each do |tag, endpoints| %>
+      <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+        <!-- Group header -->
+        <div class="px-5 py-3 border-b border-slate-700 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <h2 class="text-sm font-semibold text-white"><%= tag %></h2>
+            <span class="text-xs text-slate-500"><%= endpoints.size %> endpoints</span>
+          </div>
+          <span class="text-xs text-slate-500"><%= endpoints.sum(&:hit_count) %> total hits</span>
+        </div>
+
+        <!-- Endpoint grid -->
+        <div class="p-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            <% endpoints.each do |ep| %>
+              <%
+                freq_pct = @max_hits > 0 ? (ep.hit_count.to_f / @max_hits) : 0
+                latency_pct = @max_avg_duration > 0 ? (ep.avg_duration.to_f / @max_avg_duration) : 0
+                total_errors = ep.error_count.to_i + ep.client_error_count.to_i
+                error_pct = ep.hit_count > 0 ? (total_errors.to_f / ep.hit_count) : 0
+
+                # Frequency colors (indigo scale)
+                freq_bg = if freq_pct > 0.8 then "bg-indigo-400/20 border-indigo-400/40"
+                          elsif freq_pct > 0.5 then "bg-indigo-500/15 border-indigo-500/30"
+                          elsif freq_pct > 0.25 then "bg-indigo-700/15 border-indigo-600/25"
+                          elsif freq_pct > 0.1 then "bg-indigo-900/20 border-indigo-700/20"
+                          else "bg-indigo-950/20 border-indigo-800/15"
+                          end
+
+                # Latency colors (green -> red)
+                avg_ms = ep.avg_duration.to_f
+                latency_bg = if avg_ms > 1000 then "bg-red-500/20 border-red-400/40"
+                             elsif avg_ms > 500 then "bg-orange-600/20 border-orange-500/30"
+                             elsif avg_ms > 200 then "bg-yellow-700/15 border-yellow-600/25"
+                             elsif avg_ms > 50 then "bg-emerald-700/15 border-emerald-600/20"
+                             else "bg-emerald-900/15 border-emerald-700/15"
+                             end
+
+                # Error colors (gray -> red)
+                error_bg = if error_pct > 0.5 then "bg-red-400/20 border-red-400/40"
+                           elsif error_pct > 0.2 then "bg-red-600/20 border-red-500/30"
+                           elsif error_pct > 0.05 then "bg-red-800/15 border-red-700/25"
+                           elsif total_errors > 0 then "bg-red-950/15 border-red-800/20"
+                           else "bg-slate-800/50 border-slate-700/30"
+                           end
+              %>
+              <div class="rounded-lg border p-3 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-default group"
+                   :class="viewMode === 'frequency' ? '<%= freq_bg %>' : viewMode === 'latency' ? '<%= latency_bg %>' : '<%= error_bg %>'"
+                   title="<%= ep.method %> <%= ep.path %>&#10;Hits: <%= ep.hit_count %>&#10;Avg: <%= ep.avg_duration.to_f.round(1) %>ms&#10;Max: <%= ep.max_duration.to_f.round(1) %>ms&#10;Errors: <%= total_errors %>">
+                <!-- Method + Path -->
+                <div class="flex items-center space-x-2 mb-2">
+                  <span class="text-xs font-bold <%= method_badge_class(ep.method) %> rounded px-1.5 py-0.5 flex-shrink-0"><%= ep.method %></span>
+                  <span class="text-xs text-slate-300 truncate font-mono"><%= ep.path %></span>
+                </div>
+
+                <!-- Stats row -->
+                <div class="flex items-center justify-between text-xs">
+                  <div x-show="viewMode === 'frequency'">
+                    <span class="text-indigo-300 font-semibold"><%= ep.hit_count %></span>
+                    <span class="text-slate-500 ml-1">hits</span>
+                  </div>
+                  <div x-show="viewMode === 'latency'" x-cloak>
+                    <span class="font-semibold <%= avg_ms > 500 ? 'text-red-300' : avg_ms > 200 ? 'text-yellow-300' : 'text-emerald-300' %>"><%= ep.avg_duration.to_f.round(1) %>ms</span>
+                    <span class="text-slate-500 ml-1">avg</span>
+                  </div>
+                  <div x-show="viewMode === 'errors'" x-cloak>
+                    <% if total_errors > 0 %>
+                      <span class="text-red-300 font-semibold"><%= total_errors %></span>
+                      <span class="text-slate-500 ml-1">errors (<%= (error_pct * 100).round(1) %>%)</span>
+                    <% else %>
+                      <span class="text-emerald-400 font-semibold">Clean</span>
+                    <% end %>
+                  </div>
+
+                  <!-- Secondary stats (always visible) -->
+                  <div class="flex items-center space-x-3 text-slate-500">
+                    <span x-show="viewMode !== 'frequency'"><%= ep.hit_count %> hits</span>
+                    <span x-show="viewMode !== 'latency'" x-cloak><%= ep.avg_duration.to_f.round(0) %>ms</span>
+                    <% if total_errors > 0 %>
+                      <span x-show="viewMode !== 'errors'" x-cloak class="text-red-400"><%= total_errors %> err</span>
+                    <% end %>
+                  </div>
+                </div>
+
+                <!-- Mini bar -->
+                <div class="mt-2 h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-500"
+                       :class="viewMode === 'frequency' ? 'bg-indigo-400' : viewMode === 'latency' ? '<%= avg_ms > 500 ? 'bg-red-400' : avg_ms > 200 ? 'bg-yellow-400' : 'bg-emerald-400' %>' : '<%= total_errors > 0 ? 'bg-red-400' : 'bg-slate-600' %>'"
+                       :style="viewMode === 'frequency' ? 'width: <%= (freq_pct * 100).round(1) %>%' : viewMode === 'latency' ? 'width: <%= (latency_pct * 100).round(1) %>%' : 'width: <%= (error_pct * 100).round(1) %>%'">
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-12 text-center">
+      <p class="text-slate-400">No request data yet.</p>
+      <p class="text-sm text-slate-500 mt-2">Endpoints will appear here as requests are recorded.</p>
+    </div>
+  <% end %>
+</div>

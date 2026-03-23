@@ -25,6 +25,15 @@ module Binocs
 
       require_relative "log_subscriber"
       Binocs::LogSubscriber.attach_to :action_controller
+      Binocs::SqlLogSubscriber.attach_to :active_record
+      Binocs::ViewLogSubscriber.attach_to :action_view
+    end
+
+    initializer "binocs.log_interceptor", after: :initialize_logger do
+      next unless Binocs.enabled?
+
+      require_relative "log_subscriber"
+      Rails.logger = Binocs::LogInterceptor.new(Rails.logger)
     end
 
     initializer "binocs.assets" do |app|

@@ -73,8 +73,21 @@
         <% if @request.exception["backtrace"].present? %>
           <div class="mt-4">
             <h3 class="text-sm font-medium text-red-300 mb-2">Backtrace</h3>
-            <pre class="bg-slate-900 rounded p-4 text-xs text-red-200 overflow-x-auto max-h-96"><%= @request.exception["backtrace"].join("\n") %></pre>
+            <pre class="bg-slate-900 rounded p-4 text-xs text-red-200 overflow-x-auto max-h-96"><%= Array(@request.exception["backtrace"]).join("\n") %></pre>
           </div>
+        <% end %>
+        <% cause = @request.exception["cause"] %>
+        <% depth = 0 %>
+        <% while cause.present? && depth < 5 %>
+          <div class="mt-4 pl-4 border-l-2 border-red-800">
+            <h3 class="text-sm font-semibold text-red-400 mb-1">Caused by: <%= cause["class"] %></h3>
+            <div class="text-sm text-red-200"><%= cause["message"] %></div>
+            <% if cause["backtrace"].present? %>
+              <pre class="mt-2 bg-slate-900 rounded p-3 text-xs text-red-200/70 overflow-x-auto max-h-48"><%= Array(cause["backtrace"]).join("\n") %></pre>
+            <% end %>
+          </div>
+          <% cause = cause["cause"] %>
+          <% depth += 1 %>
         <% end %>
       </div>
     </div>
@@ -184,31 +197,19 @@
       <!-- Logs Tab -->
       <div x-show="activeTab === 'logs'" x-cloak>
         <% if @request.logs.present? && @request.logs.any? %>
+          <!-- Log type filter -->
+          <div class="mb-4 flex items-center space-x-2 flex-wrap" x-data="{ logFilter: 'all' }">
+            <span class="text-xs text-slate-500 mr-1">Filter:</span>
+            <button @click="logFilter = 'all'" :class="logFilter === 'all' ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'" class="rounded px-2 py-1 text-xs font-medium">All (<%= @request.logs.size %>)</button>
+            <% log_types = @request.logs.map { |l| l["type"] }.tally.sort_by { |_, c| -c } %>
+            <% log_types.each do |type, count| %>
+              <button @click="logFilter = '<%= type %>'" :class="logFilter === '<%= type %>' ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'" class="rounded px-2 py-1 text-xs font-medium"><%= type %> (<%= count %>)</button>
+            <% end %>
+          </div>
           <div class="space-y-3">
             <% @request.logs.each do |log| %>
-              <div class="bg-slate-900 rounded p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs font-medium text-indigo-400 uppercase"><%= log["type"] %></span>
-                  <span class="text-xs text-slate-500"><%= log["timestamp"] %></span>
-                </div>
-                <% if log["type"] == "controller" %>
-                  <div class="text-sm text-white">
-                    <span class="text-slate-400">Controller:</span> <%= log["controller"] %>#<%= log["action"] %>
-                    <% if log["view_runtime"] %>
-                      <span class="ml-4 text-slate-400">View:</span> <%= log["view_runtime"] %>ms
-                    <% end %>
-                    <% if log["db_runtime"] %>
-                      <span class="ml-4 text-slate-400">DB:</span> <%= log["db_runtime"] %>ms
-                    <% end %>
-                  </div>
-                <% elsif log["type"] == "redirect" %>
-                  <div class="text-sm text-white">
-                    <span class="text-slate-400">Redirect to:</span> <%= log["location"] %>
-                    <span class="ml-4 text-slate-400">Status:</span> <%= log["status"] %>
-                  </div>
-                <% else %>
-                  <pre class="text-sm text-white"><%= format_value(log) %></pre>
-                <% end %>
+              <div x-show="logFilter === 'all' || logFilter === '<%= log["type"] %>'">
+                <%= render partial: "binocs/requests/log_entry", locals: { log: log } %>
               </div>
             <% end %>
           </div>

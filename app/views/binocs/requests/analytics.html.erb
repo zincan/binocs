@@ -1,0 +1,239 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div>
+    <h1 class="text-xl font-semibold text-white">Analytics</h1>
+    <p class="text-sm text-slate-400 mt-1">Request patterns and performance insights</p>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Requests</div>
+      <div class="text-2xl font-bold text-white mt-1"><%= number_with_delimiter(@total_requests) %></div>
+    </div>
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Today</div>
+      <div class="text-2xl font-bold text-white mt-1"><%= number_with_delimiter(@today_requests) %></div>
+    </div>
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Avg Duration</div>
+      <div class="text-2xl font-bold text-white mt-1"><%= @avg_duration ? "#{@avg_duration.round(1)}ms" : "N/A" %></div>
+    </div>
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Error Rate</div>
+      <div class="text-2xl font-bold <%= @error_rate.to_f > 5 ? 'text-red-400' : @error_rate.to_f > 1 ? 'text-yellow-400' : 'text-emerald-400' %> mt-1"><%= @error_rate %>%</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Hourly Traffic (last 24h) -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <h2 class="text-sm font-semibold text-white mb-4">Traffic (Last 24 Hours)</h2>
+      <% if @hourly_traffic.any? %>
+        <%
+          max_hourly = @hourly_traffic.values.max || 1
+          # Generate all 24 hours
+          hours = (0..23).map { |i| (Time.current - (23 - i).hours).strftime("%Y-%m-%d %H:00") }
+        %>
+        <div class="space-y-1">
+          <% hours.each do |hour| %>
+            <%
+              count = @hourly_traffic[hour] || 0
+              pct = max_hourly > 0 ? (count.to_f / max_hourly * 100) : 0
+              hour_label = Time.parse(hour).strftime("%H:00") rescue hour.split(" ").last
+            %>
+            <div class="flex items-center space-x-2 group">
+              <span class="text-xs text-slate-500 w-12 text-right font-mono"><%= hour_label %></span>
+              <div class="flex-1 h-4 bg-slate-700/30 rounded-sm overflow-hidden">
+                <div class="h-full rounded-sm transition-all duration-300 <%= count > 0 ? 'bg-indigo-500' : '' %>"
+                     style="width: <%= [pct, 100].min %>%"></div>
+              </div>
+              <span class="text-xs text-slate-500 w-10 text-right font-mono"><%= count %></span>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-sm text-slate-400">No traffic data in the last 24 hours.</p>
+      <% end %>
+    </div>
+
+    <!-- Response Time Distribution -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <h2 class="text-sm font-semibold text-white mb-4">Response Time Distribution</h2>
+      <% if @duration_buckets.any? %>
+        <% max_bucket = @duration_buckets.values.max || 1 %>
+        <div class="space-y-3">
+          <% @duration_buckets.each do |label, count| %>
+            <%
+              pct = (count.to_f / max_bucket * 100)
+              color = case label
+                      when "< 10ms", "10-50ms" then "bg-emerald-500"
+                      when "50-100ms", "100-250ms" then "bg-yellow-500"
+                      when "250-500ms", "500ms-1s" then "bg-orange-500"
+                      else "bg-red-500"
+                      end
+            %>
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-slate-400 font-mono"><%= label %></span>
+                <span class="text-xs text-slate-400"><%= count %> (<%= @total_requests > 0 ? (count.to_f / @total_requests * 100).round(1) : 0 %>%)</span>
+              </div>
+              <div class="h-5 bg-slate-700/30 rounded overflow-hidden">
+                <div class="h-full rounded transition-all duration-300 <%= color %>" style="width: <%= [pct, 100].min %>%"></div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-sm text-slate-400">No duration data recorded.</p>
+      <% end %>
+    </div>
+
+    <!-- Status Code Distribution -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <h2 class="text-sm font-semibold text-white mb-4">Status Codes</h2>
+      <% if @status_distribution.any? %>
+        <% max_status = @status_distribution.values.max || 1 %>
+        <div class="space-y-2">
+          <% @status_distribution.sort_by { |code, _| code.to_i }.each do |code, count| %>
+            <%
+              pct = (count.to_f / max_status * 100)
+              color = case code.to_i
+                      when 200..299 then "bg-emerald-500"
+                      when 300..399 then "bg-blue-500"
+                      when 400..499 then "bg-yellow-500"
+                      when 500..599 then "bg-red-500"
+                      else "bg-slate-500"
+                      end
+            %>
+            <div class="flex items-center space-x-3">
+              <span class="text-sm font-mono w-10 text-right <%= status_badge_class(code.to_i).gsub(/bg-\S+/, '').strip %>"><%= code %></span>
+              <div class="flex-1 h-4 bg-slate-700/30 rounded overflow-hidden">
+                <div class="h-full rounded transition-all duration-300 <%= color %>" style="width: <%= [pct, 100].min %>%"></div>
+              </div>
+              <span class="text-xs text-slate-400 w-16 text-right"><%= count %> (<%= (@total_requests > 0 ? (count.to_f / @total_requests * 100).round(1) : 0) %>%)</span>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-sm text-slate-400">No status data recorded.</p>
+      <% end %>
+    </div>
+
+    <!-- HTTP Method Distribution -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <h2 class="text-sm font-semibold text-white mb-4">HTTP Methods</h2>
+      <% if @method_distribution.any? %>
+        <% max_method = @method_distribution.values.max || 1 %>
+        <div class="space-y-3">
+          <% @method_distribution.sort_by { |_, count| -count }.each do |method, count| %>
+            <% pct = (count.to_f / max_method * 100) %>
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold <%= method_badge_class(method) %> rounded px-1.5 py-0.5"><%= method %></span>
+                <span class="text-xs text-slate-400"><%= count %> (<%= @total_requests > 0 ? (count.to_f / @total_requests * 100).round(1) : 0 %>%)</span>
+              </div>
+              <div class="h-4 bg-slate-700/30 rounded overflow-hidden">
+                <% bar_color = case method.upcase
+                               when "GET" then "bg-emerald-500"
+                               when "POST" then "bg-blue-500"
+                               when "PUT", "PATCH" then "bg-yellow-500"
+                               when "DELETE" then "bg-red-500"
+                               else "bg-slate-500"
+                               end %>
+                <div class="h-full rounded transition-all duration-300 <%= bar_color %>" style="width: <%= [pct, 100].min %>%"></div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-sm text-slate-400">No method data recorded.</p>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Top Endpoints -->
+  <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+    <h2 class="text-sm font-semibold text-white mb-4">Top Endpoints by Volume</h2>
+    <% if @top_endpoints.any? %>
+      <% max_top = @top_endpoints.first.hit_count %>
+      <div class="space-y-2">
+        <% @top_endpoints.each_with_index do |ep, i| %>
+          <% pct = max_top > 0 ? (ep.hit_count.to_f / max_top * 100) : 0 %>
+          <div class="relative">
+            <!-- Background bar -->
+            <div class="absolute inset-0 rounded bg-indigo-500/10" style="width: <%= [pct, 100].min %>%"></div>
+            <!-- Content -->
+            <div class="relative flex items-center px-3 py-2">
+              <span class="text-xs text-slate-500 w-6 font-mono"><%= i + 1 %>.</span>
+              <span class="text-xs font-bold <%= method_badge_class(ep.method) %> rounded px-1.5 py-0.5 mr-2 flex-shrink-0"><%= ep.method %></span>
+              <span class="text-sm text-slate-300 font-mono truncate flex-1"><%= ep.path %></span>
+              <span class="text-sm text-white font-semibold ml-3 flex-shrink-0"><%= ep.hit_count %></span>
+              <span class="text-xs text-slate-500 ml-3 w-20 text-right flex-shrink-0"><%= ep.avg_duration.to_f.round(1) %>ms avg</span>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-sm text-slate-400">No endpoint data recorded.</p>
+    <% end %>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Slowest Endpoints -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <h2 class="text-sm font-semibold text-white mb-4">Slowest Endpoints (avg)</h2>
+      <% if @slowest_endpoints.any? %>
+        <div class="space-y-3">
+          <% @slowest_endpoints.each do |ep| %>
+            <%
+              avg_ms = ep.avg_duration.to_f
+              color = if avg_ms > 1000 then "text-red-400"
+                      elsif avg_ms > 500 then "text-orange-400"
+                      elsif avg_ms > 200 then "text-yellow-400"
+                      else "text-emerald-400"
+                      end
+            %>
+            <div class="flex items-center">
+              <span class="text-xs font-bold <%= method_badge_class(ep.method) %> rounded px-1.5 py-0.5 mr-2 flex-shrink-0"><%= ep.method %></span>
+              <span class="text-sm text-slate-300 font-mono truncate flex-1"><%= ep.path %></span>
+              <div class="flex-shrink-0 ml-3 text-right">
+                <span class="text-sm font-semibold <%= color %>"><%= avg_ms.round(1) %>ms</span>
+                <span class="text-xs text-slate-500 ml-2">max <%= ep.max_duration.to_f.round(0) %>ms</span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-sm text-slate-400">Not enough data (need 2+ requests per endpoint).</p>
+      <% end %>
+    </div>
+
+    <!-- Error Hotspots -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <h2 class="text-sm font-semibold text-white mb-4">Error Hotspots</h2>
+      <% if @error_endpoints.any? %>
+        <div class="space-y-3">
+          <% @error_endpoints.each do |ep| %>
+            <div class="flex items-center">
+              <span class="text-xs font-bold <%= method_badge_class(ep.method) %> rounded px-1.5 py-0.5 mr-2 flex-shrink-0"><%= ep.method %></span>
+              <span class="text-sm text-slate-300 font-mono truncate flex-1"><%= ep.path %></span>
+              <div class="flex-shrink-0 ml-3 flex items-center space-x-2">
+                <span class="text-xs font-medium <%= status_badge_class(ep.status_code.to_i) %> rounded px-1.5 py-0.5"><%= ep.status_code %></span>
+                <span class="text-sm font-semibold text-red-400"><%= ep.error_count %>&times;</span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="flex items-center space-x-2">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <p class="text-sm text-emerald-400">No errors recorded. Looking clean!</p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

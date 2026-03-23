@@ -9,7 +9,7 @@ module Binocs
 
       def initialize(options = {})
         @running = false
-        @mode = :list # :list, :detail, :help, :filter, :search, :agents, :agent_output, :spirit_animal, :sequence
+        @mode = :list # :list, :detail, :help, :filter, :search, :agents, :agent_output, :spirit_animal, :sequence, :endpoints
         @last_refresh = Time.now
         @search_buffer = ''
         @refresh_interval = options[:refresh_interval] || DEFAULT_REFRESH_INTERVAL
@@ -17,6 +17,7 @@ module Binocs
         @agent_output_window = nil
         @spirit_animal_window = nil
         @sequence_window = nil
+        @endpoints_window = nil
         @last_key = nil # Track last key for combo detection
       end
 
@@ -68,6 +69,8 @@ module Binocs
         @spirit_animal_window = nil
         @sequence_window&.close
         @sequence_window = nil
+        @endpoints_window&.close
+        @endpoints_window = nil
 
         # Determine if we need split screen (detail view active)
         showing_detail = @mode == :detail ||
@@ -183,6 +186,17 @@ module Binocs
           @sequence_window.load_data
         end
 
+        # Endpoints view (full screen)
+        if @mode == :endpoints
+          @endpoints_window = Endpoints.new(
+            height: height,
+            width: width,
+            top: 0,
+            left: 0
+          )
+          @endpoints_window.load_data
+        end
+
         # Spirit animal overlay (centered popup)
         if @mode == :spirit_animal
           spirit_height = [25, height - 4].min
@@ -218,6 +232,12 @@ module Binocs
           # Auto-refresh sequence view
           if @mode == :sequence && Time.now - @last_refresh > @refresh_interval
             @sequence_window&.load_data
+            @last_refresh = Time.now
+          end
+
+          # Auto-refresh endpoints view
+          if @mode == :endpoints && Time.now - @last_refresh > @refresh_interval
+            @endpoints_window&.load_data
             @last_refresh = Time.now
           end
 
@@ -288,6 +308,9 @@ module Binocs
         when :sequence
           @sequence_window.draw
           @sequence_window.noutrefresh
+        when :endpoints
+          @endpoints_window.draw
+          @endpoints_window.noutrefresh
         when :spirit_animal
           @list_window.draw
           @list_window.noutrefresh
@@ -325,6 +348,7 @@ module Binocs
         when :filter then handle_filter_input(key)
         when :search then handle_search_input(key)
         when :sequence then handle_sequence_input(key)
+        when :endpoints then handle_endpoints_input(key)
         when :agents then handle_agents_input(key)
         when :agent_output then handle_agent_output_input(key)
         when :spirit_animal then handle_spirit_animal_input(key)
@@ -373,6 +397,8 @@ module Binocs
           enter_agents_mode
         when 's'
           enter_sequence_mode
+        when 'e'
+          enter_endpoints_mode
         end
       end
 
@@ -476,8 +502,15 @@ module Binocs
 
         text = @detail_window.content_as_text
         if @detail_window.copy_to_clipboard(text)
-          # Brief flash to indicate copy succeeded - could show a message
+          # Brief flash to indicate copy succeeded
         end
+      end
+
+      def copy_screen_content(window)
+        return unless window&.respond_to?(:content_as_text)
+
+        text = window.content_as_text
+        window.copy_to_clipboard(text)
       end
 
       def update_cursor_visibility
@@ -683,7 +716,7 @@ module Binocs
         case key
         when 'q', 'Q'
           @running = false
-        when 27, 'h' # Esc or h
+        when 27, 'h', Curses::KEY_LEFT, Curses::KEY_BACKSPACE, 127, 8 # Esc, h, left arrow, backspace
           exit_sequence_mode
         when 'j', Curses::KEY_DOWN
           @sequence_window.move_down
@@ -703,6 +736,8 @@ module Binocs
           @sequence_window.prev_client
         when Curses::KEY_ENTER, 10, 13, 'l'
           view_sequence_request
+        when 'c'
+          copy_screen_content(@sequence_window)
         when 'r'
           @sequence_window.load_data
         when '?'
@@ -725,6 +760,63 @@ module Binocs
           recalculate_layout
           @detail_window.set_request(request)
         end
+      end
+
+      # Endpoints mode methods
+      def enter_endpoints_mode
+        @previous_mode = @mode
+        @mode = :endpoints
+        recalculate_layout
+      end
+
+      def exit_endpoints_mode
+        @mode = @previous_mode || :list
+        @previous_mode = nil
+        recalculate_layout
+      end
+
+      def handle_endpoints_input(key)
+        case key
+        when 'q', 'Q'
+          @running = false
+        when 27, 'h', Curses::KEY_LEFT, Curses::KEY_BACKSPACE, 127, 8 # Esc, h, left arrow, backspace
+          exit_endpoints_mode
+        when 'j', Curses::KEY_DOWN
+          @endpoints_window.move_down
+        when 'k', Curses::KEY_UP
+          @endpoints_window.move_up
+        when 'g', Curses::KEY_HOME
+          @endpoints_window.go_to_top
+        when 'G', Curses::KEY_END
+          @endpoints_window.go_to_bottom
+        when Curses::KEY_NPAGE, 4, 14
+          @endpoints_window.page_down
+        when Curses::KEY_PPAGE, 21, 16
+          @endpoints_window.page_up
+        when Curses::KEY_ENTER, 10, 13, 'l'
+          view_endpoint_requests
+        when 'c'
+          copy_screen_content(@endpoints_window)
+        when 'r'
+          @endpoints_window.load_data
+        when '?'
+          @previous_mode = :endpoints
+          @mode = :help
+          recalculate_layout
+        end
+      end
+
+      def view_endpoint_requests
+        ep = @endpoints_window&.selected_endpoint
+        return unless ep
+
+        # Switch to list mode filtered to this endpoint's method + path
+        @list_window.clear_filters
+        @list_window.set_filter(:method, ep.method)
+        @list_window.set_search(ep.path)
+        @mode = :list
+        @previous_mode = nil
+        recalculate_layout
       end
 
       # Agent mode methods

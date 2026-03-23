@@ -85,6 +85,20 @@ module Binocs
         draw_status_bar
       end
 
+      def content_as_text
+        lines = []
+        lines << "Sequence Diagram - Client: #{client_label(current_client)}"
+        lines << "=" * 80
+        lines << ""
+        @requests.each do |req|
+          time = req.created_at&.strftime("%H:%M:%S.%L") || "?"
+          lines << "  #{time}  #{req.method} #{req.path}"
+          lines << "  #{' ' * 12}  ← #{req.status_code || '???'} #{req.formatted_duration}"
+          lines << ""
+        end
+        lines.join("\n")
+      end
+
       private
 
       def visible_rows

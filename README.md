@@ -4,6 +4,10 @@
 
 ![A picture of a train conductor with binoculars](https://cdn.zincan.com/952b429896eb12e5e36a68a43a9cdc16.jpg)
 
+<p align="center">
+  <img src="docs/images/binocs-icon-512.png" alt="Binocs icon" width="128" />
+</p>
+
 A Laravel Telescope-inspired request monitoring dashboard for Rails applications. Binocs provides real-time visibility into HTTP requests through both a web interface and a terminal UI with vim-style navigation, making debugging and development easier whether you prefer the browser or the command line.
 
 *Binocs is short for binoculars — the trusty tool train engineers and conductors used to look down the tracks and inspect what's coming. Now you can do the same for your Rails requests.*

@@ -93,6 +93,26 @@ module Binocs
         x = [(@width - text.length) / 2, 0].max
         write(y, x, text, color_pair, attrs)
       end
+
+      def copy_to_clipboard(text)
+        if RbConfig::CONFIG['host_os'] =~ /darwin/
+          IO.popen('pbcopy', 'w') { |io| io.write(text) }
+          true
+        elsif system('which xclip > /dev/null 2>&1')
+          IO.popen('xclip -selection clipboard', 'w') { |io| io.write(text) }
+          true
+        elsif system('which xsel > /dev/null 2>&1')
+          IO.popen('xsel --clipboard --input', 'w') { |io| io.write(text) }
+          true
+        elsif system('which wl-copy > /dev/null 2>&1')
+          IO.popen('wl-copy', 'w') { |io| io.write(text) }
+          true
+        else
+          false
+        end
+      rescue
+        false
+      end
     end
   end
 end

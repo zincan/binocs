@@ -7,6 +7,8 @@ Binocs::Engine.routes.draw do
     collection do
       delete :clear
       get :sequence
+      get :heatmap
+      get :analytics
     end
   end
 end

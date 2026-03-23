@@ -37,6 +37,16 @@ module Binocs
     scope :recent, -> { order(created_at: :desc) }
     scope :today, -> { where("created_at >= ?", Time.current.beginning_of_day) }
     scope :last_hour, -> { where("created_at >= ?", 1.hour.ago) }
+    scope :group_by_hour, -> {
+      adapter = connection.adapter_name.downcase
+      if adapter.include?("sqlite")
+        group("strftime('%Y-%m-%d %H:00', created_at)")
+      elsif adapter.include?("postgres")
+        group("to_char(created_at, 'YYYY-MM-DD HH24:00')")
+      else
+        group("DATE_FORMAT(created_at, '%Y-%m-%d %H:00')")
+      end
+    }
     scope :search, ->(query) {
       return all if query.blank?
 

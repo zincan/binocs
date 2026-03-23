@@ -77,12 +77,25 @@ module Binocs
         record[:exception] = {
           class: exception.class.name,
           message: exception.message,
-          backtrace: exception.backtrace&.first(20)
+          backtrace: exception.backtrace&.first(30),
+          cause: build_cause_chain(exception)
         }
         record[:status_code] ||= 500
         record[:duration_ms] = calculate_duration
         record[:memory_delta] = calculate_memory_delta
         record[:logs] = Thread.current[:binocs_logs] || []
+      end
+
+      def build_cause_chain(exception, depth = 0)
+        return nil if exception.cause.nil? || depth >= 5
+
+        cause = exception.cause
+        {
+          class: cause.class.name,
+          message: cause.message,
+          backtrace: cause.backtrace&.first(15),
+          cause: build_cause_chain(cause, depth + 1)
+        }
       end
 
       def save_request_record(record)
