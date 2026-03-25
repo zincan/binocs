@@ -64,6 +64,48 @@
   # Max SQL duration for proportional bars
   max_sql = @sql_queries.map { |q| q["duration"].to_f }.max || 1.0
   max_render = @render_entries.map { |r| r["duration"].to_f }.max || 1.0
+
+  # Step counter
+  step = 0
+  next_step = -> { step += 1 }
+
+  # Middleware descriptions — what each one does
+  middleware_info = {
+    "ActionDispatch::HostAuthorization" => "Validates the Host header to prevent DNS rebinding attacks",
+    "Rack::Sendfile" => "Intercepts responses and replaces them with a server-specific X-Sendfile header",
+    "ActionDispatch::Executor" => "Wraps the request to manage app reloading and execution context",
+    "ActiveSupport::Cache::Strategy::LocalCache::Middleware" => "Enables per-request local caching for the cache store",
+    "Rack::Runtime" => "Sets the X-Runtime header with the total request processing time",
+    "Rack::MethodOverride" => "Allows POST requests to override the HTTP method via _method parameter",
+    "ActionDispatch::RequestId" => "Generates a unique X-Request-Id header for request tracing",
+    "ActionDispatch::RemoteIp" => "Determines the client's real IP by parsing X-Forwarded-For headers",
+    "Rails::Rack::Logger" => "Logs the beginning and end of each request with tagged logging",
+    "ActionDispatch::ShowExceptions" => "Catches exceptions and renders error pages (500, 404, etc.)",
+    "ActionDispatch::DebugExceptions" => "Shows detailed debugging info for exceptions in development",
+    "ActionDispatch::ActionableExceptions" => "Handles actionable error pages (like pending migrations)",
+    "ActionDispatch::Reloader" => "Triggers code reloading between requests in development",
+    "ActionDispatch::Callbacks" => "Runs before/after callbacks around each request",
+    "ActiveRecord::Migration::CheckPending" => "Raises an error if there are pending database migrations",
+    "ActionDispatch::Cookies" => "Reads and writes encrypted/signed cookies from the request",
+    "ActionDispatch::Session::CookieStore" => "Manages session data stored in encrypted cookies",
+    "ActionDispatch::Flash" => "Manages flash messages between requests via the session",
+    "ActionDispatch::ContentSecurityPolicy::Middleware" => "Sets Content-Security-Policy headers on responses",
+    "ActionDispatch::PermissionsPolicy::Middleware" => "Sets Permissions-Policy headers on responses",
+    "Rack::Head" => "Converts HEAD requests to GET and strips the response body",
+    "Rack::ConditionalGet" => "Adds ETag/Last-Modified support for HTTP caching (304 Not Modified)",
+    "Rack::ETag" => "Automatically generates ETag headers for response bodies",
+    "Rack::TempfileReaper" => "Cleans up temporary files created during multipart uploads",
+    "Binocs::Middleware::RequestRecorder" => "Records request/response data for the Binocs dashboard",
+    "Warden::Manager" => "Authentication middleware used by Devise for user session management",
+    "ActionDispatch::Static" => "Serves static files from the public/ directory",
+    "Rack::Deflater" => "Compresses response bodies with gzip/deflate encoding",
+    "Rack::Cors" => "Handles Cross-Origin Resource Sharing (CORS) headers",
+    "ActionCable::Server::Base" => "Handles WebSocket upgrade requests for Action Cable",
+  }
+
+  # Direction arrow for middleware: is it processing the request (down) or response (up)?
+  # Binocs sits near the bottom, so it sees the request going down
+  binocs_index = @middleware_stack.index { |m| m.include?("Binocs") }
 %>
 
 <div class="space-y-0" data-testid="lifecycle-view">
@@ -103,18 +145,16 @@
     <!-- Pipeline Column (3/4 width) -->
     <div class="lg:col-span-3 space-y-0">
 
-      <!-- ======================== -->
-      <!-- LAYER 1: HTTP Request    -->
-      <!-- ======================== -->
+      <!-- ====================================== -->
+      <!-- STEP 1: HTTP Request Received           -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
       <div class="relative" data-testid="lifecycle-layer-http-request">
-        <!-- Layer card -->
         <div class="bg-zinc-900 rounded-xl p-5 border border-yellow-500/20 hover:border-yellow-500/40 transition-all">
           <div class="flex items-center space-x-2 mb-3">
-            <!-- Incoming arrow icon -->
-            <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-              </svg>
+            <!-- Step number -->
+            <div class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-black"><%= s %></span>
             </div>
             <h2 class="text-sm font-semibold text-yellow-400 uppercase tracking-wide">HTTP Request Received</h2>
             <span class="text-xs text-zinc-600"><%= @request.created_at.strftime("%H:%M:%S.%L") %></span>
@@ -128,6 +168,7 @@
               <span>Raw</span>
             </a>
           </div>
+          <p class="text-xs text-zinc-500 mb-3">The HTTP request arrives at the server. Rack parses the raw HTTP message into an env hash.</p>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
               <span class="text-zinc-500 text-xs">Method</span>
@@ -156,40 +197,105 @@
         </div>
       </div>
 
-      <!-- ======================== -->
-      <!-- LAYER 2: Middleware      -->
-      <!-- ======================== -->
-      <div class="relative" data-testid="lifecycle-layer-middleware">
-        <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center space-x-2">
-              <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
+      <!-- ====================================== -->
+      <!-- STEP 2: Rack Middleware Stack            -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
+      <div class="relative" data-testid="lifecycle-layer-middleware" x-data="{ expanded: false }">
+        <div class="bg-zinc-900 rounded-xl border border-zinc-800 hover:border-yellow-500/30 transition-all overflow-hidden">
+          <div class="p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                  <span class="text-xs font-bold text-zinc-200"><%= s %></span>
+                </div>
+                <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Rack Middleware Stack</h2>
+                <span class="text-xs text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5"><%= @middleware_stack.size %> layers</span>
               </div>
-              <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Rack Middleware Stack</h2>
+              <div class="flex items-center space-x-3">
+                <a href="<%= raw_request_path(@request.uuid, section: 'middleware') %>" target="_blank" rel="noopener"
+                   class="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-xs text-zinc-500 hover:text-yellow-400 hover:bg-zinc-800 transition-all"
+                   title="View raw middleware info" data-testid="lifecycle-raw-middleware-btn">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  <span>Raw</span>
+                </a>
+                <span class="text-sm font-mono text-zinc-400" data-testid="lifecycle-middleware-duration"><%= fmt.call(@lifecycle[:middleware_time]) %></span>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
-              <a href="<%= raw_request_path(@request.uuid, section: 'middleware') %>" target="_blank" rel="noopener"
-                 class="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-xs text-zinc-500 hover:text-yellow-400 hover:bg-zinc-800 transition-all"
-                 title="View raw middleware info" data-testid="lifecycle-raw-middleware-btn">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+
+            <p class="text-xs text-zinc-500 mb-3">The request passes through each middleware layer top-to-bottom. Each layer can inspect, modify, or short-circuit the request before it reaches your application code. The response then travels back up through the same stack in reverse.</p>
+
+            <!-- Middleware timing bar -->
+            <div class="w-full bg-zinc-800 rounded h-2 overflow-hidden">
+              <div class="bg-zinc-500 h-2 rounded transition-all" style="width: <%= middleware_pct %>%;" data-testid="lifecycle-middleware-bar"></div>
+            </div>
+            <div class="flex justify-between mt-2">
+              <span class="text-xs text-zinc-600"><%= middleware_pct %>% of total request time</span>
+              <button @click="expanded = !expanded" class="text-xs text-zinc-500 hover:text-yellow-400 transition-colors flex items-center space-x-1">
+                <span x-text="expanded ? 'Hide middleware layers' : 'Show all <%= @middleware_stack.size %> middleware layers'"></span>
+                <svg :class="expanded ? 'rotate-180' : ''" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
-                <span>Raw</span>
-              </a>
-              <span class="text-sm font-mono text-zinc-400" data-testid="lifecycle-middleware-duration"><%= fmt.call(@lifecycle[:middleware_time]) %></span>
+              </button>
             </div>
           </div>
 
-          <!-- Middleware timing bar -->
-          <div class="w-full bg-zinc-800 rounded h-2 overflow-hidden">
-            <div class="bg-zinc-500 h-2 rounded transition-all" style="width: <%= middleware_pct %>%;" data-testid="lifecycle-middleware-bar"></div>
-          </div>
-          <div class="flex justify-between mt-2">
-            <span class="text-xs text-zinc-600">Binocs::Middleware::RequestRecorder + Rails middleware stack</span>
-            <span class="text-xs text-zinc-500"><%= middleware_pct %>% of total</span>
+          <!-- Expanded middleware list -->
+          <div x-show="expanded" x-transition class="border-t border-zinc-800">
+            <div class="px-5 py-3">
+              <div class="flex items-center space-x-2 mb-3 text-xs text-zinc-500">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                </svg>
+                <span>Request flows down through each layer</span>
+              </div>
+            </div>
+            <div class="divide-y divide-zinc-800/50">
+              <% @middleware_stack.each_with_index do |mw, idx| %>
+                <% is_binocs = mw.include?("Binocs") %>
+                <div class="px-5 py-2.5 flex items-start space-x-3 group hover:bg-zinc-800/30 transition-colors <%= 'bg-yellow-500/5' if is_binocs %>" data-testid="lifecycle-middleware-<%= idx %>">
+                  <!-- Step indicator with connecting line -->
+                  <div class="flex flex-col items-center flex-shrink-0" style="min-width: 28px;">
+                    <div class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-mono
+                                <%= is_binocs ? 'bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/30' : 'bg-zinc-800 text-zinc-500' %>">
+                      <%= idx + 1 %>
+                    </div>
+                    <% unless idx == @middleware_stack.size - 1 %>
+                      <div class="w-px h-3 <%= is_binocs ? 'bg-yellow-500/30' : 'bg-zinc-800' %>"></div>
+                    <% end %>
+                  </div>
+                  <!-- Middleware info -->
+                  <div class="min-w-0 flex-1 py-0.5">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-xs font-mono <%= is_binocs ? 'text-yellow-400 font-semibold' : 'text-zinc-300' %> truncate"><%= mw %></span>
+                      <% if is_binocs %>
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/20 font-medium">this layer</span>
+                      <% end %>
+                    </div>
+                    <% desc = middleware_info[mw] %>
+                    <% if desc %>
+                      <p class="text-xs text-zinc-600 mt-0.5 group-hover:text-zinc-500 transition-colors"><%= desc %></p>
+                    <% end %>
+                  </div>
+                  <!-- Arrow direction indicator -->
+                  <div class="flex-shrink-0 pt-0.5">
+                    <svg class="w-3 h-3 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                    </svg>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+            <div class="px-5 py-3 border-t border-zinc-800">
+              <div class="flex items-center space-x-2 text-xs text-zinc-500">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+                </svg>
+                <span>Response flows back up through each layer in reverse order</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -199,19 +305,19 @@
         </div>
       </div>
 
-      <!-- ======================== -->
-      <!-- LAYER 3: Router          -->
-      <!-- ======================== -->
+      <!-- ====================================== -->
+      <!-- STEP 3: Router                          -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
       <div class="relative" data-testid="lifecycle-layer-router">
         <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
           <div class="flex items-center space-x-2 mb-3">
-            <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
-              </svg>
+            <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-cyan-400"><%= s %></span>
             </div>
             <h2 class="text-sm font-semibold text-cyan-400 uppercase tracking-wide">Router</h2>
           </div>
+          <p class="text-xs text-zinc-500 mb-3">Rails matches the request path and HTTP method against the route table (<code class="text-zinc-400">config/routes.rb</code>) to determine which controller and action should handle this request.</p>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
@@ -252,9 +358,44 @@
         </div>
       </div>
 
-      <!-- ======================== -->
-      <!-- LAYER 4: Controller      -->
-      <!-- ======================== -->
+      <!-- ====================================== -->
+      <!-- STEP 4: Before Filters                  -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
+      <div class="relative" data-testid="lifecycle-layer-before-filters">
+        <div class="bg-zinc-900 rounded-xl p-5 border <%= @halted_filter ? 'border-rose-500/30' : 'border-zinc-800' %> hover:border-yellow-500/30 transition-all">
+          <div class="flex items-center space-x-2 mb-3">
+            <div class="w-8 h-8 rounded-full <%= @halted_filter ? 'bg-rose-500/20' : 'bg-zinc-700' %> flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold <%= @halted_filter ? 'text-rose-400' : 'text-zinc-200' %>"><%= s %></span>
+            </div>
+            <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Before Filters</h2>
+            <% if @halted_filter %>
+              <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20 font-medium">halted</span>
+            <% else %>
+              <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-emerald-500/10 text-emerald-400 font-medium">passed</span>
+            <% end %>
+          </div>
+          <p class="text-xs text-zinc-500 mb-2">Rails runs <code class="text-zinc-400">before_action</code> callbacks defined in the controller. These can authenticate users, set instance variables, or halt the request chain entirely.</p>
+          <% if @halted_filter %>
+            <div class="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3 flex items-center space-x-2" data-testid="lifecycle-halted-filter">
+              <svg class="w-4 h-4 text-rose-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="text-sm text-rose-300">Filter chain halted by <code class="font-mono bg-rose-500/10 px-1 rounded"><%= @halted_filter["filter"] %></code></span>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Connector -->
+        <div class="flex justify-center py-0">
+          <div class="w-px h-8 bg-gradient-to-b from-zinc-700 to-yellow-500/30"></div>
+        </div>
+      </div>
+
+      <!-- ====================================== -->
+      <!-- STEP 5: Controller Action               -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
       <div class="relative" data-testid="lifecycle-layer-controller"
            x-data="{ showQueries: <%= @sql_queries.size <= 8 ? 'true' : 'false' %>, showTemplates: <%= @render_entries.size <= 8 ? 'true' : 'false' %> }">
         <div class="bg-zinc-900 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 transition-all overflow-hidden">
@@ -263,29 +404,18 @@
           <div class="p-5 pb-4">
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
-                  </svg>
+                <div class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center flex-shrink-0">
+                  <span class="text-xs font-bold text-black"><%= s %></span>
                 </div>
-                <h2 class="text-sm font-semibold text-yellow-400 uppercase tracking-wide">Controller Processing</h2>
+                <h2 class="text-sm font-semibold text-yellow-400 uppercase tracking-wide">Controller Action</h2>
               </div>
               <span class="text-sm font-mono text-yellow-400" data-testid="lifecycle-controller-duration"><%= fmt.call(@lifecycle[:controller_duration]) %></span>
             </div>
 
             <% if @request.controller_action %>
-              <p class="text-zinc-200 font-mono text-sm mb-3"><%= @request.controller_name %>#<%= @request.action_name %></p>
+              <p class="text-zinc-200 font-mono text-sm mb-1"><%= @request.controller_name %>#<%= @request.action_name %></p>
             <% end %>
-
-            <!-- Halted filter warning -->
-            <% if @halted_filter %>
-              <div class="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3 mb-4 flex items-center space-x-2" data-testid="lifecycle-halted-filter">
-                <svg class="w-4 h-4 text-rose-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-sm text-rose-300">Filter chain halted by <code class="font-mono bg-rose-500/10 px-1 rounded"><%= @halted_filter["filter"] %></code></span>
-              </div>
-            <% end %>
+            <p class="text-xs text-zinc-500 mb-3">The controller action runs your application logic — loading data from the database, processing business rules, and preparing the response.</p>
 
             <!-- Timing summary bar (stacked horizontal) -->
             <div class="mb-4">
@@ -308,12 +438,15 @@
             </div>
           </div>
 
-          <!-- Database Queries subsection -->
+          <!-- STEP 5a: Database Queries subsection -->
           <% if @sql_queries.any? %>
+            <% sub_s = "#{s}a" %>
             <div class="border-t border-zinc-800" data-testid="lifecycle-sql-queries">
               <button @click="showQueries = !showQueries" class="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-zinc-800/50 transition-colors">
                 <div class="flex items-center space-x-2">
-                  <span class="w-2.5 h-2.5 rounded-sm bg-cyan-400"></span>
+                  <div class="w-6 h-6 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                    <span class="text-xs font-mono text-cyan-400"><%= sub_s %></span>
+                  </div>
                   <span class="text-sm font-medium text-zinc-300">Database Queries</span>
                   <span class="text-xs text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5"><%= @sql_queries.size %></span>
                 </div>
@@ -363,12 +496,15 @@
             </div>
           <% end %>
 
-          <!-- View Rendering subsection -->
+          <!-- STEP 5b: View Rendering subsection -->
           <% if @render_entries.any? %>
+            <% sub_s = "#{s}b" %>
             <div class="border-t border-zinc-800" data-testid="lifecycle-render-entries">
               <button @click="showTemplates = !showTemplates" class="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-zinc-800/50 transition-colors">
                 <div class="flex items-center space-x-2">
-                  <span class="w-2.5 h-2.5 rounded-sm bg-yellow-400"></span>
+                  <div class="w-6 h-6 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                    <span class="text-xs font-mono text-yellow-400"><%= sub_s %></span>
+                  </div>
                   <span class="text-sm font-medium text-zinc-300">View Rendering</span>
                   <span class="text-xs text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5"><%= @render_entries.size %></span>
                 </div>
@@ -391,7 +527,6 @@
                           <span class="text-xs font-medium <%= render_text_color.call(r_duration) %> font-mono whitespace-nowrap"><%= fmt.call(r_duration) %></span>
                           <%
                             identifier = entry["identifier"].to_s
-                            # Shorten template paths: remove Rails.root prefix and app/views/ prefix
                             short_id = identifier.sub(/.*\/app\/views\//, "").sub(/.*\/app\//, "app/")
                             subtype = entry["subtype"] || (identifier.include?("_") ? "partial" : "template")
                           %>
@@ -411,12 +546,15 @@
             </div>
           <% end %>
 
-          <!-- Log entries subsection -->
+          <!-- STEP 5c: Log entries subsection -->
           <% if @log_entries.any? %>
+            <% sub_s = "#{s}c" %>
             <div class="border-t border-zinc-800" data-testid="lifecycle-log-entries">
               <div class="px-5 py-3">
                 <div class="flex items-center space-x-2 mb-2">
-                  <span class="w-2.5 h-2.5 rounded-sm bg-zinc-600"></span>
+                  <div class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                    <span class="text-xs font-mono text-zinc-500"><%= sub_s %></span>
+                  </div>
                   <span class="text-sm font-medium text-zinc-300">Log Messages</span>
                   <span class="text-xs text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5"><%= @log_entries.size %></span>
                 </div>
@@ -448,14 +586,35 @@
         </div>
       </div>
 
-      <!-- ========================== -->
-      <!-- Exception Overlay (if any) -->
-      <!-- ========================== -->
+      <!-- ====================================== -->
+      <!-- STEP 6: After Filters                   -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
+      <div class="relative" data-testid="lifecycle-layer-after-filters">
+        <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
+          <div class="flex items-center space-x-2 mb-2">
+            <div class="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-zinc-200"><%= s %></span>
+            </div>
+            <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">After Filters</h2>
+          </div>
+          <p class="text-xs text-zinc-500">Rails runs <code class="text-zinc-400">after_action</code> callbacks — typically used for logging, modifying response headers, or cleanup. The response body is finalized.</p>
+        </div>
+
+        <!-- Connector -->
+        <div class="flex justify-center py-0">
+          <div class="w-px h-8 bg-gradient-to-b from-zinc-700 to-zinc-700"></div>
+        </div>
+      </div>
+
+      <!-- ====================================== -->
+      <!-- Exception Overlay (if any)              -->
+      <!-- ====================================== -->
       <% if @request.has_exception? %>
         <div class="relative" data-testid="lifecycle-layer-exception">
           <div class="bg-rose-500/5 rounded-xl p-5 border border-rose-500/30 ring-1 ring-rose-500/20" x-data="{ showTrace: false }">
             <div class="flex items-center space-x-2 mb-3">
-              <div class="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center flex-shrink-0">
+              <div class="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center flex-shrink-0">
                 <svg class="w-4 h-4 text-rose-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                 </svg>
@@ -488,20 +647,40 @@
         </div>
       <% end %>
 
-      <!-- ======================== -->
-      <!-- LAYER 5: HTTP Response   -->
-      <!-- ======================== -->
+      <!-- ====================================== -->
+      <!-- STEP 7: Middleware (Response Phase)      -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
+      <div class="relative" data-testid="lifecycle-layer-middleware-response">
+        <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
+          <div class="flex items-center space-x-2 mb-2">
+            <div class="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-zinc-200"><%= s %></span>
+            </div>
+            <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Middleware (Response Phase)</h2>
+          </div>
+          <p class="text-xs text-zinc-500">The response travels back up through the middleware stack in reverse order. Each middleware can inspect or modify the response — setting headers (ETag, CORS, CSP), compressing the body, managing cookies/sessions, and logging.</p>
+        </div>
+
+        <!-- Connector -->
+        <div class="flex justify-center py-0">
+          <div class="w-px h-8 bg-gradient-to-b from-zinc-700 to-zinc-700"></div>
+        </div>
+      </div>
+
+      <!-- ====================================== -->
+      <!-- STEP 8: HTTP Response Sent              -->
+      <!-- ====================================== -->
+      <% s = next_step.call %>
       <div class="relative" data-testid="lifecycle-layer-http-response">
         <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
           <div class="flex items-center space-x-2 mb-3">
-            <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
-              <!-- Outgoing arrow icon -->
-              <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-              </svg>
+            <div class="w-8 h-8 rounded-full <%= @request.status_code.to_i < 400 ? 'bg-emerald-500/20' : @request.status_code.to_i < 500 ? 'bg-amber-500/20' : 'bg-rose-500/20' %> flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold <%= @request.status_code.to_i < 400 ? 'text-emerald-400' : @request.status_code.to_i < 500 ? 'text-amber-400' : 'text-rose-400' %>"><%= s %></span>
             </div>
-            <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">HTTP Response</h2>
+            <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">HTTP Response Sent</h2>
           </div>
+          <p class="text-xs text-zinc-500 mb-3">The final HTTP response is serialized and sent back to the client over the TCP connection.</p>
 
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
@@ -560,6 +739,19 @@
               </div>
             </div>
           <% end %>
+        </div>
+
+        <!-- Final arrow: response leaves the server -->
+        <div class="flex justify-center pt-2 pb-4">
+          <div class="flex flex-col items-center">
+            <div class="w-px h-6 bg-gradient-to-b from-zinc-700 to-emerald-500/40"></div>
+            <div class="w-8 h-8 rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <span class="text-xs text-emerald-400/60 mt-1">Complete</span>
+          </div>
         </div>
       </div>
 
@@ -651,6 +843,14 @@
 
         <!-- Quick stats -->
         <div class="mt-5 pt-4 border-t border-zinc-800 space-y-2">
+          <div class="flex justify-between text-xs">
+            <span class="text-zinc-500">Steps</span>
+            <span class="text-zinc-300 font-mono"><%= step %></span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-zinc-500">Middleware Layers</span>
+            <span class="text-zinc-300 font-mono"><%= @middleware_stack.size %></span>
+          </div>
           <div class="flex justify-between text-xs">
             <span class="text-zinc-500">SQL Queries</span>
             <span class="text-zinc-300 font-mono"><%= @sql_queries.size %></span>

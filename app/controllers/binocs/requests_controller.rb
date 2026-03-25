@@ -155,6 +155,16 @@ module Binocs
 
       # Generic log entries
       @log_entries = logs.select { |l| l["type"] == "log" }
+
+      # Middleware stack from the host Rails app
+      @middleware_stack = begin
+        Rails.application.middleware.map do |middleware|
+          name = middleware.klass.is_a?(String) ? middleware.klass : middleware.klass.name
+          name
+        end.compact
+      rescue
+        []
+      end
     end
 
     def raw
