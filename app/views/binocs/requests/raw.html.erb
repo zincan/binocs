@@ -1,0 +1,180 @@
+<%
+  # Build raw HTTP request text
+  req_headers = @request.request_headers || {}
+  res_headers = @request.response_headers || {}
+
+  raw_request = String.new
+  raw_request << "#{@request.method} #{@request.path} HTTP/1.1\r\n"
+  raw_request << "Host: #{URI.parse(@request.full_url).host rescue 'localhost'}\r\n"
+  req_headers.each do |k, v|
+    next if k.to_s.downcase == "host"
+    raw_request << "#{k}: #{v}\r\n"
+  end
+  raw_request << "\r\n"
+  if @request.request_body.present?
+    body = @request.request_body.to_s
+    # Try to pretty-print JSON
+    begin
+      parsed = JSON.parse(body)
+      raw_request << JSON.pretty_generate(parsed)
+    rescue
+      raw_request << body
+    end
+  end
+
+  raw_response = String.new
+  raw_response << "HTTP/1.1 #{@request.status_code} #{Rack::Utils::HTTP_STATUS_CODES[@request.status_code]}\r\n"
+  res_headers.each do |k, v|
+    raw_response << "#{k}: #{v}\r\n"
+  end
+  raw_response << "\r\n"
+  if @request.response_body.present?
+    body = @request.response_body.to_s
+    begin
+      parsed = JSON.parse(body)
+      raw_response << JSON.pretty_generate(parsed)
+    rescue
+      raw_response << body
+    end
+  end
+
+  raw_full = "# ===== REQUEST =====\r\n\r\n#{raw_request}\r\n# ===== RESPONSE =====\r\n\r\n#{raw_response}"
+
+  # Middleware info block
+  logs = Array(@request.logs)
+  controller_log = logs.find { |l| l["type"] == "controller" }
+  middleware_time = @request.duration_ms.to_f - (controller_log&.dig("duration").to_f)
+  middleware_time = [middleware_time, 0].max
+
+  raw_middleware = String.new
+  raw_middleware << "# ===== RACK MIDDLEWARE STACK =====\r\n"
+  raw_middleware << "#\r\n"
+  raw_middleware << "# Total request duration: #{@request.duration_ms.to_f.round(2)}ms\r\n"
+  raw_middleware << "# Middleware overhead:     #{middleware_time.round(2)}ms\r\n"
+  raw_middleware << "# Controller duration:    #{controller_log&.dig('duration').to_f.round(2)}ms\r\n"
+  raw_middleware << "#\r\n"
+  raw_middleware << "# Middleware chain (in order):\r\n"
+  raw_middleware << "#   1. ActionDispatch::HostAuthorization\r\n"
+  raw_middleware << "#   2. Rack::Sendfile\r\n"
+  raw_middleware << "#   3. ActionDispatch::Executor\r\n"
+  raw_middleware << "#   4. ActiveSupport::Cache::Strategy::LocalCache::Middleware\r\n"
+  raw_middleware << "#   5. Rack::Runtime\r\n"
+  raw_middleware << "#   6. Rack::MethodOverride\r\n"
+  raw_middleware << "#   7. ActionDispatch::RequestId\r\n"
+  raw_middleware << "#   8. ActionDispatch::RemoteIp\r\n"
+  raw_middleware << "#   9. Rails::Rack::Logger\r\n"
+  raw_middleware << "#  10. ActionDispatch::ShowExceptions\r\n"
+  raw_middleware << "#  11. ActionDispatch::Callbacks\r\n"
+  raw_middleware << "#  12. ActionDispatch::Cookies\r\n"
+  raw_middleware << "#  13. ActionDispatch::Session::CookieStore\r\n"
+  raw_middleware << "#  14. ActionDispatch::Flash\r\n"
+  raw_middleware << "#  15. ActionDispatch::ContentSecurityPolicy::Middleware\r\n"
+  raw_middleware << "#  16. Binocs::Middleware::RequestRecorder  <-- this layer\r\n"
+  raw_middleware << "#  17. ActionDispatch::Routing::RouteSet\r\n"
+  raw_middleware << "#\r\n"
+  raw_middleware << "# Note: Actual middleware stack may vary based on your Rails\r\n"
+  raw_middleware << "#       application configuration. Run `bin/rails middleware`\r\n"
+  raw_middleware << "#       in your host app to see the exact order.\r\n"
+  raw_middleware << "\r\n\r\n"
+
+  # Add request headers as they arrive at the Rack layer
+  raw_middleware << "# --- Rack env (selected keys) ---\r\n\r\n"
+  raw_middleware << "REQUEST_METHOD:  #{@request.method}\r\n"
+  raw_middleware << "PATH_INFO:       #{@request.path}\r\n"
+  raw_middleware << "REQUEST_URI:     #{@request.full_url}\r\n"
+  raw_middleware << "CONTENT_TYPE:    #{@request.content_type || 'N/A'}\r\n"
+  raw_middleware << "REMOTE_ADDR:     #{@request.ip_address || 'N/A'}\r\n"
+  raw_middleware << "SERVER_PROTOCOL: HTTP/1.1\r\n"
+  raw_middleware << "\r\n# --- HTTP Headers (Rack normalized) ---\r\n\r\n"
+  req_headers.each do |k, v|
+    rack_key = "HTTP_#{k.to_s.upcase.gsub('-', '_')}"
+    raw_middleware << "#{rack_key}: #{v}\r\n"
+  end
+
+  sections = {
+    "full" => raw_full,
+    "request" => raw_request,
+    "response" => raw_response,
+    "middleware" => raw_middleware
+  }
+
+  display_text = sections[@section] || raw_full
+  section_title = { "full" => "Full HTTP Exchange", "request" => "Raw Request", "response" => "Raw Response", "middleware" => "Rack Middleware" }[@section] || "Raw"
+%>
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <title>Raw · <%= @request.method %> <%= @request.path %> · Binocs</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+    pre { tab-size: 4; }
+    /* Line numbers */
+    .line-numbers { counter-reset: line; }
+    .line-numbers .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 3.5em;
+      padding-right: 1em;
+      text-align: right;
+      color: #3f3f46;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-300 min-h-screen" data-testid="raw-view">
+
+  <!-- Top bar -->
+  <div class="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <!-- File icon (GitHub-style) -->
+        <svg class="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <span class="text-sm text-zinc-400"><%= section_title %></span>
+        <span class="text-xs text-zinc-600">·</span>
+        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-bold <%= @request.method == 'GET' ? 'bg-emerald-500/10 text-emerald-400' : @request.method == 'POST' ? 'bg-cyan-500/10 text-cyan-400' : @request.method == 'DELETE' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400' %>"><%= @request.method %></span>
+        <span class="text-sm text-zinc-300 font-mono"><%= @request.path %></span>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <!-- Section tabs -->
+        <div class="hidden sm:flex items-center bg-zinc-900 rounded-lg p-0.5 space-x-0.5" data-testid="raw-section-tabs">
+          <% %w[full request response middleware].each do |s| %>
+            <a href="<%= raw_request_path(@request.uuid, section: s) %>"
+               class="px-3 py-1.5 rounded-md text-xs font-medium transition-all <%= @section == s ? 'bg-yellow-500 text-black' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800' %>"
+               data-testid="raw-tab-<%= s %>">
+              <%= { "full" => "Full", "request" => "Request", "response" => "Response", "middleware" => "Middleware" }[s] %>
+            </a>
+          <% end %>
+        </div>
+
+        <!-- Copy button -->
+        <button onclick="navigator.clipboard.writeText(document.getElementById('raw-content').textContent).then(() => { this.innerHTML = '<svg class=\'w-4 h-4 text-emerald-400\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M5 13l4 4L19 7\'></path></svg>'; setTimeout(() => { this.innerHTML = '<svg class=\'w-4 h-4\' fill=\'none\' stroke=\'currentColor\' viewBox=\'0 0 24 24\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z\'></path></svg>'; }, 2000) })"
+                class="p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                title="Copy to clipboard"
+                data-testid="raw-copy-btn">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw content -->
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+      <pre id="raw-content" class="p-6 text-sm leading-relaxed overflow-x-auto line-numbers" data-testid="raw-content"><% display_text.each_line do |line| %><span class="line"><%= h(line.chomp) %>
+</span><% end %></pre>
+    </div>
+  </div>
+
+</body>
+</html>

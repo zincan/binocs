@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-900">
+<html lang="en" class="h-full bg-zinc-950">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,10 +16,11 @@
         extend: {
           colors: {
             binocs: {
-              bg: '#0f172a',
-              card: '#1e293b',
-              border: '#334155',
-              accent: '#6366f1'
+              bg: '#09090b',
+              card: '#18181b',
+              border: '#27272a',
+              accent: '#eab308',
+              gold: '#ca8a04'
             }
           }
         }
@@ -33,23 +34,36 @@
 <body class="h-full">
   <div class="min-h-full">
     <!-- Navigation -->
-    <nav class="bg-slate-800 border-b border-slate-700">
+    <nav class="bg-zinc-950 border-b border-yellow-500/20">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
           <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <span class="text-2xl font-bold text-indigo-400">Binocs</span>
-              <span class="ml-2 text-sm text-slate-400">Request Monitor</span>
+            <div class="flex-shrink-0 flex items-center">
+              <!-- Binoculars icon inspired by the Binocs brand icon -->
+              <svg class="w-7 h-7 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="14" r="5" stroke="#eab308" stroke-width="1.5" fill="#eab308" fill-opacity="0.15"/>
+                <circle cx="16" cy="14" r="5" stroke="#eab308" stroke-width="1.5" fill="#eab308" fill-opacity="0.15"/>
+                <circle cx="8" cy="14" r="2.5" fill="#18181b" stroke="#fefce8" stroke-width="0.75"/>
+                <circle cx="16" cy="14" r="2.5" fill="#18181b" stroke="#fefce8" stroke-width="0.75"/>
+                <rect x="11" y="12" width="2" height="4" rx="1" fill="#eab308"/>
+                <path d="M6 9 L8 11" stroke="#eab308" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M18 9 L16 11" stroke="#eab308" stroke-width="1.5" stroke-linecap="round"/>
+                <!-- Cyan accent dots from brand icon -->
+                <circle cx="8" cy="14" r="0.75" fill="#22d3ee"/>
+                <circle cx="16" cy="14" r="0.75" fill="#22d3ee"/>
+              </svg>
+              <span class="text-2xl font-bold text-yellow-500">Binocs</span>
+              <span class="ml-2 text-sm text-zinc-500">Request Monitor</span>
             </div>
             <div class="ml-10 flex items-baseline space-x-4">
-              <%= link_to "Requests", binocs.requests_path, class: "rounded-md px-3 py-2 text-sm font-medium #{current_page?(binocs.requests_path) ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}" %>
-              <%= link_to "Sequence", binocs.sequence_requests_path, class: "rounded-md px-3 py-2 text-sm font-medium #{current_page?(binocs.sequence_requests_path) ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}" %>
-              <%= link_to "Heatmap", binocs.heatmap_requests_path, class: "rounded-md px-3 py-2 text-sm font-medium #{current_page?(binocs.heatmap_requests_path) ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}" %>
-              <%= link_to "Analytics", binocs.analytics_requests_path, class: "rounded-md px-3 py-2 text-sm font-medium #{current_page?(binocs.analytics_requests_path) ? 'bg-slate-900 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}" %>
+              <%= link_to "Requests", binocs.requests_path, class: "rounded-md px-3 py-2 text-sm font-medium transition-all #{current_page?(binocs.requests_path) ? 'bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/30' : 'text-zinc-400 hover:bg-zinc-800 hover:text-yellow-400'}" %>
+              <%= link_to "Sequence", binocs.sequence_requests_path, class: "rounded-md px-3 py-2 text-sm font-medium transition-all #{current_page?(binocs.sequence_requests_path) ? 'bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/30' : 'text-zinc-400 hover:bg-zinc-800 hover:text-yellow-400'}" %>
+              <%= link_to "Heatmap", binocs.heatmap_requests_path, class: "rounded-md px-3 py-2 text-sm font-medium transition-all #{current_page?(binocs.heatmap_requests_path) ? 'bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/30' : 'text-zinc-400 hover:bg-zinc-800 hover:text-yellow-400'}" %>
+              <%= link_to "Analytics", binocs.analytics_requests_path, class: "rounded-md px-3 py-2 text-sm font-medium transition-all #{current_page?(binocs.analytics_requests_path) ? 'bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/30' : 'text-zinc-400 hover:bg-zinc-800 hover:text-yellow-400'}" %>
             </div>
           </div>
           <div class="flex items-center space-x-4">
-            <span class="text-xs text-slate-500">
+            <span class="text-xs text-zinc-600">
               Rails <%= Rails::VERSION::STRING %> |
               Ruby <%= RUBY_VERSION %> |
               <%= Rails.env %>
@@ -60,7 +74,7 @@
     </nav>
 
     <!-- Authentication Required Banner (hidden by default, shown by JS when WebSocket fails) -->
-    <div id="binocs-auth-banner" class="hidden bg-amber-900/50 border-b border-amber-700">
+    <div id="binocs-auth-banner" class="hidden bg-amber-900/30 border-b border-amber-700/50">
       <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div class="flex items-center">
@@ -74,10 +88,10 @@
           </div>
           <div class="flex gap-2">
             <% login_url = "#{Binocs.configuration.resolved_login_path}?redirect_to=#{ERB::Util.url_encode(request.fullpath)}" rescue Binocs.configuration.resolved_login_path %>
-            <a href="<%= login_url %>" class="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-500">
+            <a href="<%= login_url %>" class="rounded-md bg-yellow-500 px-3 py-1.5 text-sm font-medium text-black hover:bg-yellow-400 transition-colors">
               Sign in
             </a>
-            <button onclick="document.getElementById('binocs-auth-banner').classList.add('hidden')" class="rounded-md bg-amber-800 px-3 py-1.5 text-sm font-medium text-amber-200 hover:bg-amber-700">
+            <button onclick="document.getElementById('binocs-auth-banner').classList.add('hidden')" class="rounded-md bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-700 transition-colors">
               Dismiss
             </button>
           </div>
@@ -87,22 +101,22 @@
 
     <!-- Flash Messages -->
     <% if notice %>
-      <div class="bg-green-900/50 border-b border-green-800">
+      <div class="bg-emerald-900/30 border-b border-emerald-800/50">
         <div class="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
-          <p class="text-sm text-green-300"><%= notice %></p>
+          <p class="text-sm text-emerald-300"><%= notice %></p>
         </div>
       </div>
     <% end %>
     <% if alert %>
-      <div class="bg-red-900/50 border-b border-red-800">
+      <div class="bg-rose-900/30 border-b border-rose-800/50">
         <div class="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
-          <p class="text-sm text-red-300"><%= alert %></p>
+          <p class="text-sm text-rose-300"><%= alert %></p>
         </div>
       </div>
     <% end %>
 
     <!-- Main Content -->
-    <main class="bg-slate-900 min-h-screen">
+    <main class="bg-zinc-950 min-h-screen">
       <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <%= yield %>
       </div>

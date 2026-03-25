@@ -5,32 +5,32 @@ module Binocs
     def method_badge_class(method)
       case method.to_s.upcase
       when "GET"
-        "bg-green-900/50 text-green-300"
+        "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20"
       when "POST"
-        "bg-blue-900/50 text-blue-300"
+        "bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/20"
       when "PUT", "PATCH"
-        "bg-yellow-900/50 text-yellow-300"
+        "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/20"
       when "DELETE"
-        "bg-red-900/50 text-red-300"
+        "bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/20"
       else
-        "bg-slate-700 text-slate-300"
+        "bg-zinc-800 text-zinc-400 ring-1 ring-zinc-700"
       end
     end
 
     def status_badge_class(status)
-      return "bg-slate-700 text-slate-300" if status.nil?
+      return "bg-zinc-800 text-zinc-400 ring-1 ring-zinc-700" if status.nil?
 
       case status
       when 200..299
-        "bg-green-900/50 text-green-300"
+        "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20"
       when 300..399
-        "bg-blue-900/50 text-blue-300"
+        "bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/20"
       when 400..499
-        "bg-yellow-900/50 text-yellow-300"
+        "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/20"
       when 500..599
-        "bg-red-900/50 text-red-300"
+        "bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/20"
       else
-        "bg-slate-700 text-slate-300"
+        "bg-zinc-800 text-zinc-400 ring-1 ring-zinc-700"
       end
     end
 

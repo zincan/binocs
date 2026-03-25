@@ -1,0 +1,686 @@
+<%
+  # Precompute values used throughout the template
+  total = @lifecycle[:total_duration]
+  total = 1.0 if total.zero? # prevent division by zero
+
+  middleware_pct = (@lifecycle[:middleware_time] / total * 100).round(1)
+  db_pct = (@lifecycle[:db_runtime] / total * 100).round(1)
+  view_pct = (@lifecycle[:view_runtime] / total * 100).round(1)
+  other_pct = (@lifecycle[:other_time] / total * 100).round(1)
+
+  # Helper to format ms durations inline
+  fmt = ->(ms) {
+    if ms < 1
+      "< 1ms"
+    elsif ms < 1000
+      "#{ms.round(1)}ms"
+    else
+      "#{(ms / 1000.0).round(2)}s"
+    end
+  }
+
+  # Color for SQL query duration
+  sql_color = ->(ms) {
+    if ms < 5
+      "bg-emerald-400"
+    elsif ms < 50
+      "bg-amber-400"
+    else
+      "bg-rose-500"
+    end
+  }
+
+  sql_text_color = ->(ms) {
+    if ms < 5
+      "text-emerald-400"
+    elsif ms < 50
+      "text-amber-400"
+    else
+      "text-rose-500"
+    end
+  }
+
+  # Color for render duration
+  render_color = ->(ms) {
+    if ms < 10
+      "bg-emerald-400"
+    elsif ms < 50
+      "bg-amber-400"
+    else
+      "bg-rose-500"
+    end
+  }
+
+  render_text_color = ->(ms) {
+    if ms < 10
+      "text-emerald-400"
+    elsif ms < 50
+      "text-amber-400"
+    else
+      "text-rose-500"
+    end
+  }
+
+  # Max SQL duration for proportional bars
+  max_sql = @sql_queries.map { |q| q["duration"].to_f }.max || 1.0
+  max_render = @render_entries.map { |r| r["duration"].to_f }.max || 1.0
+%>
+
+<div class="space-y-0" data-testid="lifecycle-view">
+
+  <!-- Back Link + Header -->
+  <div class="mb-6">
+    <div class="flex items-center space-x-3 mb-4">
+      <%= link_to binocs.request_path(@request.uuid), class: "inline-flex items-center text-sm text-zinc-500 hover:text-yellow-400 transition-colors" do %>
+        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+        Back to Request
+      <% end %>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <h1 class="text-xl font-semibold text-zinc-200">Request Lifecycle</h1>
+        <span class="inline-flex items-center rounded px-2.5 py-1 text-xs font-medium <%= method_badge_class(@request.method) %>" data-testid="lifecycle-method-badge">
+          <%= @request.method %>
+        </span>
+        <span class="inline-flex items-center rounded px-2.5 py-1 text-xs font-medium <%= status_badge_class(@request.status_code) %>" data-testid="lifecycle-status-badge">
+          <%= @request.status_code %>
+        </span>
+      </div>
+      <div class="text-right">
+        <span class="text-3xl font-bold text-zinc-100" data-testid="lifecycle-total-duration"><%= fmt.call(@lifecycle[:total_duration]) %></span>
+        <span class="block text-xs text-zinc-500 mt-0.5">total duration</span>
+      </div>
+    </div>
+    <p class="text-sm text-zinc-400 mt-1 font-mono break-all"><%= @request.path %></p>
+  </div>
+
+  <!-- Main layout: Pipeline (left) + Timing waterfall (right) -->
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+    <!-- Pipeline Column (3/4 width) -->
+    <div class="lg:col-span-3 space-y-0">
+
+      <!-- ======================== -->
+      <!-- LAYER 1: HTTP Request    -->
+      <!-- ======================== -->
+      <div class="relative" data-testid="lifecycle-layer-http-request">
+        <!-- Layer card -->
+        <div class="bg-zinc-900 rounded-xl p-5 border border-yellow-500/20 hover:border-yellow-500/40 transition-all">
+          <div class="flex items-center space-x-2 mb-3">
+            <!-- Incoming arrow icon -->
+            <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+              </svg>
+            </div>
+            <h2 class="text-sm font-semibold text-yellow-400 uppercase tracking-wide">HTTP Request Received</h2>
+            <span class="text-xs text-zinc-600"><%= @request.created_at.strftime("%H:%M:%S.%L") %></span>
+            <!-- Raw file icon -->
+            <a href="<%= raw_request_path(@request.uuid, section: 'request') %>" target="_blank" rel="noopener"
+               class="ml-auto inline-flex items-center space-x-1 px-2 py-1 rounded-md text-xs text-zinc-500 hover:text-yellow-400 hover:bg-zinc-800 transition-all"
+               title="View raw HTTP request" data-testid="lifecycle-raw-request-btn">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span>Raw</span>
+            </a>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span class="text-zinc-500 text-xs">Method</span>
+              <div class="mt-0.5">
+                <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium <%= method_badge_class(@request.method) %>"><%= @request.method %></span>
+              </div>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Content-Type</span>
+              <p class="text-zinc-200 mt-0.5 font-mono text-xs truncate"><%= @request.content_type || "N/A" %></p>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Client IP</span>
+              <p class="text-zinc-200 mt-0.5 font-mono text-xs"><%= @request.ip_address || "N/A" %></p>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Full URL</span>
+              <p class="text-zinc-200 mt-0.5 font-mono text-xs truncate" title="<%= @request.full_url %>"><%= @request.full_url %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector arrow -->
+        <div class="flex justify-center py-0">
+          <div class="w-px h-8 bg-gradient-to-b from-yellow-500/40 to-zinc-700"></div>
+        </div>
+      </div>
+
+      <!-- ======================== -->
+      <!-- LAYER 2: Middleware      -->
+      <!-- ======================== -->
+      <div class="relative" data-testid="lifecycle-layer-middleware">
+        <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </div>
+              <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Rack Middleware Stack</h2>
+            </div>
+            <div class="flex items-center space-x-3">
+              <a href="<%= raw_request_path(@request.uuid, section: 'middleware') %>" target="_blank" rel="noopener"
+                 class="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-xs text-zinc-500 hover:text-yellow-400 hover:bg-zinc-800 transition-all"
+                 title="View raw middleware info" data-testid="lifecycle-raw-middleware-btn">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span>Raw</span>
+              </a>
+              <span class="text-sm font-mono text-zinc-400" data-testid="lifecycle-middleware-duration"><%= fmt.call(@lifecycle[:middleware_time]) %></span>
+            </div>
+          </div>
+
+          <!-- Middleware timing bar -->
+          <div class="w-full bg-zinc-800 rounded h-2 overflow-hidden">
+            <div class="bg-zinc-500 h-2 rounded transition-all" style="width: <%= middleware_pct %>%;" data-testid="lifecycle-middleware-bar"></div>
+          </div>
+          <div class="flex justify-between mt-2">
+            <span class="text-xs text-zinc-600">Binocs::Middleware::RequestRecorder + Rails middleware stack</span>
+            <span class="text-xs text-zinc-500"><%= middleware_pct %>% of total</span>
+          </div>
+        </div>
+
+        <!-- Connector -->
+        <div class="flex justify-center py-0">
+          <div class="w-px h-8 bg-gradient-to-b from-zinc-700 to-zinc-700"></div>
+        </div>
+      </div>
+
+      <!-- ======================== -->
+      <!-- LAYER 3: Router          -->
+      <!-- ======================== -->
+      <div class="relative" data-testid="lifecycle-layer-router">
+        <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
+          <div class="flex items-center space-x-2 mb-3">
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+              </svg>
+            </div>
+            <h2 class="text-sm font-semibold text-cyan-400 uppercase tracking-wide">Router</h2>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span class="text-zinc-500 text-xs">Resolved Route</span>
+              <p class="text-zinc-200 mt-0.5 font-mono text-sm">
+                <% if @request.controller_action %>
+                  <%= @request.controller_action %>
+                <% else %>
+                  <span class="text-zinc-500 italic">unresolved</span>
+                <% end %>
+              </p>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Route Name</span>
+              <p class="text-zinc-200 mt-0.5 font-mono text-sm"><%= @request.route_name.presence || "N/A" %></p>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Matched Params</span>
+              <% route_params = (@request.params || {}).except("controller", "action", "format") %>
+              <% if route_params.any? %>
+                <div class="mt-0.5 flex flex-wrap gap-1">
+                  <% route_params.each do |k, v| %>
+                    <span class="inline-flex items-center rounded bg-zinc-800 px-1.5 py-0.5 text-xs font-mono">
+                      <span class="text-yellow-400"><%= k %></span><span class="text-zinc-600">=</span><span class="text-zinc-300"><%= v.to_s.truncate(30) %></span>
+                    </span>
+                  <% end %>
+                </div>
+              <% else %>
+                <p class="text-zinc-500 mt-0.5 text-sm">none</p>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector -->
+        <div class="flex justify-center py-0">
+          <div class="w-px h-8 bg-gradient-to-b from-zinc-700 to-yellow-500/30"></div>
+        </div>
+      </div>
+
+      <!-- ======================== -->
+      <!-- LAYER 4: Controller      -->
+      <!-- ======================== -->
+      <div class="relative" data-testid="lifecycle-layer-controller"
+           x-data="{ showQueries: <%= @sql_queries.size <= 8 ? 'true' : 'false' %>, showTemplates: <%= @render_entries.size <= 8 ? 'true' : 'false' %> }">
+        <div class="bg-zinc-900 rounded-xl border border-yellow-500/20 hover:border-yellow-500/40 transition-all overflow-hidden">
+
+          <!-- Controller header -->
+          <div class="p-5 pb-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                  </svg>
+                </div>
+                <h2 class="text-sm font-semibold text-yellow-400 uppercase tracking-wide">Controller Processing</h2>
+              </div>
+              <span class="text-sm font-mono text-yellow-400" data-testid="lifecycle-controller-duration"><%= fmt.call(@lifecycle[:controller_duration]) %></span>
+            </div>
+
+            <% if @request.controller_action %>
+              <p class="text-zinc-200 font-mono text-sm mb-3"><%= @request.controller_name %>#<%= @request.action_name %></p>
+            <% end %>
+
+            <!-- Halted filter warning -->
+            <% if @halted_filter %>
+              <div class="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3 mb-4 flex items-center space-x-2" data-testid="lifecycle-halted-filter">
+                <svg class="w-4 h-4 text-rose-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+                <span class="text-sm text-rose-300">Filter chain halted by <code class="font-mono bg-rose-500/10 px-1 rounded"><%= @halted_filter["filter"] %></code></span>
+              </div>
+            <% end %>
+
+            <!-- Timing summary bar (stacked horizontal) -->
+            <div class="mb-4">
+              <div class="flex items-center space-x-1 text-xs text-zinc-500 mb-1.5">
+                <span>Controller time breakdown</span>
+              </div>
+              <div class="w-full bg-zinc-800 rounded-lg h-3 overflow-hidden flex" data-testid="lifecycle-controller-breakdown-bar">
+                <% if @lifecycle[:controller_duration] > 0 %>
+                  <% ctrl = @lifecycle[:controller_duration] %>
+                  <div class="bg-cyan-400 h-3 transition-all" style="width: <%= (@lifecycle[:db_runtime] / ctrl * 100).round(1) %>%;" title="DB: <%= fmt.call(@lifecycle[:db_runtime]) %>"></div>
+                  <div class="bg-yellow-400 h-3 transition-all" style="width: <%= (@lifecycle[:view_runtime] / ctrl * 100).round(1) %>%;" title="View: <%= fmt.call(@lifecycle[:view_runtime]) %>"></div>
+                  <div class="bg-zinc-500 h-3 transition-all" style="width: <%= (@lifecycle[:other_time] / ctrl * 100).round(1) %>%;" title="Other: <%= fmt.call(@lifecycle[:other_time]) %>"></div>
+                <% end %>
+              </div>
+              <div class="flex items-center space-x-4 mt-2 text-xs">
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-sm bg-cyan-400 mr-1.5"></span><span class="text-zinc-400">DB</span> <span class="text-zinc-300 ml-1 font-mono"><%= fmt.call(@lifecycle[:db_runtime]) %></span></span>
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-sm bg-yellow-400 mr-1.5"></span><span class="text-zinc-400">View</span> <span class="text-zinc-300 ml-1 font-mono"><%= fmt.call(@lifecycle[:view_runtime]) %></span></span>
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-sm bg-zinc-500 mr-1.5"></span><span class="text-zinc-400">Other</span> <span class="text-zinc-300 ml-1 font-mono"><%= fmt.call(@lifecycle[:other_time]) %></span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Database Queries subsection -->
+          <% if @sql_queries.any? %>
+            <div class="border-t border-zinc-800" data-testid="lifecycle-sql-queries">
+              <button @click="showQueries = !showQueries" class="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-zinc-800/50 transition-colors">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-cyan-400"></span>
+                  <span class="text-sm font-medium text-zinc-300">Database Queries</span>
+                  <span class="text-xs text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5"><%= @sql_queries.size %></span>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="text-xs font-mono text-cyan-400"><%= fmt.call(@lifecycle[:db_runtime]) %></span>
+                  <svg :class="showQueries ? 'rotate-180' : ''" class="w-4 h-4 text-zinc-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </button>
+
+              <div x-show="showQueries" x-transition class="border-t border-zinc-800/50">
+                <div class="divide-y divide-zinc-800/50">
+                  <% @sql_queries.each_with_index do |query, idx| %>
+                    <% q_duration = query["duration"].to_f %>
+                    <% q_pct = max_sql > 0 ? (q_duration / max_sql * 100).round(1) : 0 %>
+                    <div class="px-5 py-3 hover:bg-zinc-800/30 transition-colors" data-testid="lifecycle-sql-query-<%= idx %>"
+                         x-data="{ expanded: false }">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3 min-w-0 flex-1">
+                          <span class="text-xs font-medium <%= sql_text_color.call(q_duration) %> font-mono whitespace-nowrap"><%= fmt.call(q_duration) %></span>
+                          <span class="text-xs text-zinc-400 truncate"><%= query["name"].presence || "SQL" %></span>
+                        </div>
+                        <div class="flex items-center space-x-3 flex-shrink-0 ml-3">
+                          <!-- Proportional duration bar -->
+                          <div class="w-20 bg-zinc-800 rounded h-1.5 overflow-hidden">
+                            <div class="<%= sql_color.call(q_duration) %> h-1.5 rounded transition-all" style="width: <%= q_pct %>%;"></div>
+                          </div>
+                          <% if query["sql"].present? %>
+                            <button @click="expanded = !expanded" class="text-zinc-600 hover:text-zinc-400 transition-colors">
+                              <svg :class="expanded ? 'rotate-180' : ''" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                              </svg>
+                            </button>
+                          <% end %>
+                        </div>
+                      </div>
+                      <% if query["sql"].present? %>
+                        <div x-show="expanded" x-transition class="mt-2">
+                          <pre class="bg-zinc-950 rounded-lg p-3 text-xs text-cyan-300/80 overflow-x-auto font-mono leading-relaxed"><%= query["sql"] %></pre>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <!-- View Rendering subsection -->
+          <% if @render_entries.any? %>
+            <div class="border-t border-zinc-800" data-testid="lifecycle-render-entries">
+              <button @click="showTemplates = !showTemplates" class="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-zinc-800/50 transition-colors">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-yellow-400"></span>
+                  <span class="text-sm font-medium text-zinc-300">View Rendering</span>
+                  <span class="text-xs text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5"><%= @render_entries.size %></span>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span class="text-xs font-mono text-yellow-400"><%= fmt.call(@lifecycle[:view_runtime]) %></span>
+                  <svg :class="showTemplates ? 'rotate-180' : ''" class="w-4 h-4 text-zinc-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </button>
+
+              <div x-show="showTemplates" x-transition class="border-t border-zinc-800/50">
+                <div class="divide-y divide-zinc-800/50">
+                  <% @render_entries.each_with_index do |entry, idx| %>
+                    <% r_duration = entry["duration"].to_f %>
+                    <% r_pct = max_render > 0 ? (r_duration / max_render * 100).round(1) : 0 %>
+                    <div class="px-5 py-3 hover:bg-zinc-800/30 transition-colors" data-testid="lifecycle-render-entry-<%= idx %>">
+                      <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3 min-w-0 flex-1">
+                          <span class="text-xs font-medium <%= render_text_color.call(r_duration) %> font-mono whitespace-nowrap"><%= fmt.call(r_duration) %></span>
+                          <%
+                            identifier = entry["identifier"].to_s
+                            # Shorten template paths: remove Rails.root prefix and app/views/ prefix
+                            short_id = identifier.sub(/.*\/app\/views\//, "").sub(/.*\/app\//, "app/")
+                            subtype = entry["subtype"] || (identifier.include?("_") ? "partial" : "template")
+                          %>
+                          <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-zinc-800 text-zinc-500 font-medium"><%= subtype %></span>
+                          <span class="text-xs text-zinc-300 truncate font-mono" title="<%= identifier %>"><%= short_id %></span>
+                        </div>
+                        <div class="flex items-center space-x-3 flex-shrink-0 ml-3">
+                          <div class="w-20 bg-zinc-800 rounded h-1.5 overflow-hidden">
+                            <div class="<%= render_color.call(r_duration) %> h-1.5 rounded transition-all" style="width: <%= r_pct %>%;"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <!-- Log entries subsection -->
+          <% if @log_entries.any? %>
+            <div class="border-t border-zinc-800" data-testid="lifecycle-log-entries">
+              <div class="px-5 py-3">
+                <div class="flex items-center space-x-2 mb-2">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-zinc-600"></span>
+                  <span class="text-sm font-medium text-zinc-300">Log Messages</span>
+                  <span class="text-xs text-zinc-500 bg-zinc-800 rounded-full px-2 py-0.5"><%= @log_entries.size %></span>
+                </div>
+                <div class="space-y-1">
+                  <% @log_entries.each_with_index do |entry, idx| %>
+                    <%
+                      level = entry["level"].to_s.downcase
+                      level_color = case level
+                                    when "error", "fatal" then "text-rose-400"
+                                    when "warn", "warning" then "text-amber-400"
+                                    when "info" then "text-zinc-300"
+                                    else "text-zinc-500"
+                                    end
+                    %>
+                    <div class="flex items-start space-x-2 text-xs" data-testid="lifecycle-log-entry-<%= idx %>">
+                      <span class="font-mono uppercase w-12 flex-shrink-0 <%= level_color %>"><%= level.truncate(5) %></span>
+                      <span class="text-zinc-400 font-mono break-all"><%= entry["message"] %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Connector -->
+        <div class="flex justify-center py-0">
+          <div class="w-px h-8 bg-gradient-to-b from-yellow-500/30 to-zinc-700"></div>
+        </div>
+      </div>
+
+      <!-- ========================== -->
+      <!-- Exception Overlay (if any) -->
+      <!-- ========================== -->
+      <% if @request.has_exception? %>
+        <div class="relative" data-testid="lifecycle-layer-exception">
+          <div class="bg-rose-500/5 rounded-xl p-5 border border-rose-500/30 ring-1 ring-rose-500/20" x-data="{ showTrace: false }">
+            <div class="flex items-center space-x-2 mb-3">
+              <div class="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-rose-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                </svg>
+              </div>
+              <h2 class="text-sm font-semibold text-rose-400 uppercase tracking-wide">Exception Raised</h2>
+            </div>
+
+            <div class="space-y-2">
+              <p class="text-sm font-semibold text-rose-300 font-mono"><%= @request.exception["class"] %></p>
+              <p class="text-sm text-rose-200/80"><%= @request.exception["message"] %></p>
+
+              <% if @request.exception["backtrace"].present? %>
+                <button @click="showTrace = !showTrace" class="text-xs text-rose-400/70 hover:text-rose-300 transition-colors flex items-center space-x-1">
+                  <span x-text="showTrace ? 'Hide backtrace' : 'Show backtrace'"></span>
+                  <svg :class="showTrace ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+                <div x-show="showTrace" x-transition>
+                  <pre class="bg-zinc-950 rounded-lg p-3 text-xs text-rose-200/70 overflow-x-auto max-h-64 font-mono leading-relaxed mt-2"><%= Array(@request.exception["backtrace"]).first(15).join("\n") %></pre>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+          <!-- Connector -->
+          <div class="flex justify-center py-0">
+            <div class="w-px h-8 bg-gradient-to-b from-rose-500/30 to-zinc-700"></div>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- ======================== -->
+      <!-- LAYER 5: HTTP Response   -->
+      <!-- ======================== -->
+      <div class="relative" data-testid="lifecycle-layer-http-response">
+        <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 hover:border-yellow-500/30 transition-all">
+          <div class="flex items-center space-x-2 mb-3">
+            <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0">
+              <!-- Outgoing arrow icon -->
+              <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+              </svg>
+            </div>
+            <h2 class="text-sm font-semibold text-zinc-300 uppercase tracking-wide">HTTP Response</h2>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span class="text-zinc-500 text-xs">Status Code</span>
+              <div class="mt-0.5">
+                <span class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium <%= status_badge_class(@request.status_code) %>" data-testid="lifecycle-response-status"><%= @request.status_code %></span>
+              </div>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Content-Type</span>
+              <p class="text-zinc-200 mt-0.5 font-mono text-xs truncate"><%= @request.response_headers&.dig("Content-Type") || @request.content_type || "N/A" %></p>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Response Size</span>
+              <%
+                body_size = @request.response_body.to_s.bytesize
+                size_str = if body_size < 1024
+                             "#{body_size} B"
+                           elsif body_size < 1024 * 1024
+                             "#{(body_size / 1024.0).round(1)} KB"
+                           else
+                             "#{(body_size / (1024.0 * 1024)).round(1)} MB"
+                           end
+              %>
+              <p class="text-zinc-200 mt-0.5 font-mono text-xs"><%= size_str %></p>
+            </div>
+            <div>
+              <span class="text-zinc-500 text-xs">Memory Delta</span>
+              <p class="text-zinc-200 mt-0.5 font-mono text-xs"><%= @request.formatted_memory_delta %></p>
+            </div>
+          </div>
+
+          <% if @redirect %>
+            <div class="mt-3 pt-3 border-t border-zinc-800">
+              <span class="text-xs text-zinc-500">Redirect</span>
+              <p class="text-sm text-cyan-400 font-mono mt-0.5"><%= @redirect["status"] %> -> <%= @redirect["location"] %></p>
+            </div>
+          <% end %>
+
+          <!-- Response headers summary (collapsed) -->
+          <% if @request.response_headers.present? && @request.response_headers.any? %>
+            <div class="mt-3 pt-3 border-t border-zinc-800" x-data="{ showHeaders: false }">
+              <button @click="showHeaders = !showHeaders" class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center space-x-1">
+                <span>Response Headers (<%= @request.response_headers.size %>)</span>
+                <svg :class="showHeaders ? 'rotate-180' : ''" class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+              <div x-show="showHeaders" x-transition class="mt-2 space-y-1">
+                <% @request.response_headers.each do |key, value| %>
+                  <div class="flex text-xs">
+                    <span class="font-mono text-yellow-400/70 w-40 flex-shrink-0 truncate"><%= key %></span>
+                    <span class="font-mono text-zinc-400 truncate"><%= value %></span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+    </div><!-- end pipeline column -->
+
+    <!-- ================================= -->
+    <!-- Timing Waterfall (right sidebar)  -->
+    <!-- ================================= -->
+    <div class="lg:col-span-1" data-testid="lifecycle-timing-waterfall">
+      <div class="bg-zinc-900 rounded-xl p-5 border border-zinc-800 sticky top-24">
+        <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-4">Timing Waterfall</h3>
+
+        <!-- Total duration -->
+        <div class="text-center mb-5 pb-4 border-b border-zinc-800">
+          <span class="text-3xl font-bold text-zinc-100 font-mono"><%= fmt.call(@lifecycle[:total_duration]) %></span>
+          <span class="block text-xs text-zinc-500 mt-1">Total Duration</span>
+        </div>
+
+        <!-- Vertical bar segments -->
+        <div class="space-y-3">
+          <!-- Middleware -->
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-zinc-400">Middleware</span>
+              <span class="text-zinc-300 font-mono"><%= fmt.call(@lifecycle[:middleware_time]) %></span>
+            </div>
+            <div class="w-full bg-zinc-800 rounded h-2.5 overflow-hidden">
+              <div class="bg-zinc-500 h-2.5 rounded transition-all" style="width: <%= middleware_pct %>%;"></div>
+            </div>
+            <span class="text-xs text-zinc-600 mt-0.5 block"><%= middleware_pct %>%</span>
+          </div>
+
+          <!-- DB -->
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-sm bg-cyan-400"></span>
+                <span class="text-zinc-400">Database</span>
+              </div>
+              <span class="text-cyan-400 font-mono"><%= fmt.call(@lifecycle[:db_runtime]) %></span>
+            </div>
+            <div class="w-full bg-zinc-800 rounded h-2.5 overflow-hidden">
+              <div class="bg-cyan-400 h-2.5 rounded transition-all" style="width: <%= db_pct %>%;"></div>
+            </div>
+            <span class="text-xs text-zinc-600 mt-0.5 block"><%= db_pct %>%</span>
+          </div>
+
+          <!-- View -->
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-sm bg-yellow-400"></span>
+                <span class="text-zinc-400">View</span>
+              </div>
+              <span class="text-yellow-400 font-mono"><%= fmt.call(@lifecycle[:view_runtime]) %></span>
+            </div>
+            <div class="w-full bg-zinc-800 rounded h-2.5 overflow-hidden">
+              <div class="bg-yellow-400 h-2.5 rounded transition-all" style="width: <%= view_pct %>%;"></div>
+            </div>
+            <span class="text-xs text-zinc-600 mt-0.5 block"><%= view_pct %>%</span>
+          </div>
+
+          <!-- Other -->
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-sm bg-zinc-500"></span>
+                <span class="text-zinc-400">Other</span>
+              </div>
+              <span class="text-zinc-300 font-mono"><%= fmt.call(@lifecycle[:other_time]) %></span>
+            </div>
+            <div class="w-full bg-zinc-800 rounded h-2.5 overflow-hidden">
+              <div class="bg-zinc-500 h-2.5 rounded transition-all" style="width: <%= other_pct %>%;"></div>
+            </div>
+            <span class="text-xs text-zinc-600 mt-0.5 block"><%= other_pct %>%</span>
+          </div>
+        </div>
+
+        <!-- Stacked composite bar -->
+        <div class="mt-5 pt-4 border-t border-zinc-800">
+          <span class="text-xs text-zinc-500 mb-2 block">Composite</span>
+          <div class="w-full bg-zinc-800 rounded-lg h-4 overflow-hidden flex">
+            <div class="bg-zinc-500 h-4" style="width: <%= middleware_pct %>%;" title="Middleware: <%= middleware_pct %>%"></div>
+            <div class="bg-cyan-400 h-4" style="width: <%= db_pct %>%;" title="DB: <%= db_pct %>%"></div>
+            <div class="bg-yellow-400 h-4" style="width: <%= view_pct %>%;" title="View: <%= view_pct %>%"></div>
+            <div class="bg-zinc-600 h-4" style="width: <%= other_pct %>%;" title="Other: <%= other_pct %>%"></div>
+          </div>
+        </div>
+
+        <!-- Quick stats -->
+        <div class="mt-5 pt-4 border-t border-zinc-800 space-y-2">
+          <div class="flex justify-between text-xs">
+            <span class="text-zinc-500">SQL Queries</span>
+            <span class="text-zinc-300 font-mono"><%= @sql_queries.size %></span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-zinc-500">Templates</span>
+            <span class="text-zinc-300 font-mono"><%= @render_entries.size %></span>
+          </div>
+          <% if @sql_queries.any? %>
+            <div class="flex justify-between text-xs">
+              <span class="text-zinc-500">Slowest Query</span>
+              <span class="text-zinc-300 font-mono"><%= fmt.call(@sql_queries.map { |q| q["duration"].to_f }.max) %></span>
+            </div>
+          <% end %>
+          <% if @request.has_exception? %>
+            <div class="flex justify-between text-xs">
+              <span class="text-rose-400">Exception</span>
+              <span class="text-rose-300 font-mono text-xs truncate ml-2"><%= @request.exception["class"].to_s.split("::").last %></span>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Link back to full request detail -->
+        <div class="mt-5 pt-4 border-t border-zinc-800">
+          <%= link_to binocs.request_path(@request.uuid), class: "w-full inline-flex items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/30 px-3 py-2 text-xs font-medium hover:bg-yellow-500/20 transition-all" do %>
+            View Full Request Detail
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end grid -->
+</div>

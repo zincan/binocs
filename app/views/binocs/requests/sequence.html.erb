@@ -1,39 +1,39 @@
 <div class="space-y-6">
   <!-- Header -->
   <div class="flex items-center justify-between">
-    <h1 class="text-xl font-semibold text-white">Sequence Diagram</h1>
+    <h1 class="text-xl font-semibold text-zinc-200">Sequence Diagram</h1>
 
     <!-- Client Selector -->
     <div class="flex items-center space-x-3">
-      <label for="client-select" class="text-sm text-slate-400">Client:</label>
+      <label for="client-select" class="text-sm text-zinc-500">Client:</label>
       <select id="client-select"
               onchange="window.location.href = '<%= binocs.sequence_requests_path %>?client=' + encodeURIComponent(this.value)"
-              class="rounded-md bg-slate-800 border border-slate-600 text-white text-sm px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
+              class="rounded-md bg-zinc-800 border border-zinc-700 text-white text-sm px-3 py-2 focus:border-yellow-500 focus:ring-yellow-500/30">
         <% @client_identifiers.each do |identifier| %>
           <option value="<%= identifier %>" <%= 'selected' if identifier == @selected_client %>>
             <%= client_label(identifier) %>
           </option>
         <% end %>
       </select>
-      <span class="text-xs text-slate-500"><%= @requests.size %> requests</span>
+      <span class="text-xs text-zinc-600"><%= @requests.size %> requests</span>
     </div>
   </div>
 
   <% if @requests.any? %>
     <!-- Sequence Diagram -->
-    <div class="bg-slate-800 rounded-lg border border-slate-700 p-6" x-data="{ expanded: null }">
+    <div class="bg-zinc-900 rounded-lg border border-zinc-800 p-6" x-data="{ expanded: null }">
       <!-- Lifeline Headers -->
       <div class="flex mb-6">
         <div class="w-1/2 text-center">
-          <div class="inline-block bg-indigo-900/50 border border-indigo-700 rounded-lg px-6 py-3">
-            <div class="text-sm font-medium text-indigo-300">Client</div>
-            <div class="text-xs text-slate-400 mt-1"><%= client_label(@selected_client) %></div>
+          <div class="inline-block bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-6 py-3">
+            <div class="text-sm font-medium text-yellow-400">Client</div>
+            <div class="text-xs text-zinc-500 mt-1"><%= client_label(@selected_client) %></div>
           </div>
         </div>
         <div class="w-1/2 text-center">
-          <div class="inline-block bg-emerald-900/50 border border-emerald-700 rounded-lg px-6 py-3">
-            <div class="text-sm font-medium text-emerald-300">Server</div>
-            <div class="text-xs text-slate-400 mt-1">Rails App</div>
+          <div class="inline-block bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-6 py-3">
+            <div class="text-sm font-medium text-emerald-400">Server</div>
+            <div class="text-xs text-zinc-500 mt-1">Rails App</div>
           </div>
         </div>
       </div>
@@ -42,23 +42,23 @@
       <div class="relative">
         <% @requests.each_with_index do |request, index| %>
           <!-- Request/Response pair -->
-          <div class="relative flex cursor-pointer hover:bg-slate-700/30 rounded transition-colors py-3"
+          <div class="relative flex cursor-pointer hover:bg-yellow-500/5 rounded transition-colors py-3"
                @click="expanded = expanded === <%= index %> ? null : <%= index %>">
 
             <!-- Timestamp label (left edge) -->
-            <div class="absolute left-2 top-3 text-[11px] text-slate-500 whitespace-nowrap z-10"
+            <div class="absolute left-2 top-3 text-[11px] text-zinc-600 whitespace-nowrap z-10"
                  title="<%= request.created_at&.strftime('%b %d, %Y %H:%M:%S.%L') %>">
               <%= relative_time(request.created_at) %>
             </div>
 
             <!-- Client lifeline -->
             <div class="w-1/2 flex justify-center relative">
-              <div class="absolute top-0 bottom-0 w-px bg-indigo-800"></div>
+              <div class="absolute top-0 bottom-0 w-px bg-yellow-500/30"></div>
             </div>
 
             <!-- Server lifeline -->
             <div class="w-1/2 flex justify-center relative">
-              <div class="absolute top-0 bottom-0 w-px bg-emerald-800"></div>
+              <div class="absolute top-0 bottom-0 w-px bg-emerald-500/30"></div>
             </div>
 
             <!-- Request arrow (Client -> Server) -->
@@ -67,40 +67,40 @@
                    @mouseenter="showReqPopup = true"
                    @mouseleave="showReqPopup = false">
                 <!-- Arrow line -->
-                <div class="border-t-[3px] border-indigo-400 w-full relative" style="margin-left: 25%; width: 50%;">
+                <div class="border-t-[3px] border-yellow-400 w-full relative" style="margin-left: 25%; width: 50%;">
                   <!-- Arrow head -->
-                  <div class="absolute -right-[1px] -top-[7px] w-0 h-0 border-l-[10px] border-l-indigo-400 border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent"></div>
+                  <div class="absolute -right-[1px] -top-[7px] w-0 h-0 border-l-[10px] border-l-yellow-400 border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent"></div>
                 </div>
                 <!-- Request label -->
                 <div class="text-center mt-1">
                   <span class="inline-flex items-center space-x-2 text-xs">
                     <span class="font-medium <%= method_badge_class(request.method) %> rounded px-1.5 py-0.5"><%= request.method %></span>
-                    <span class="text-slate-300 truncate max-w-xs"><%= request.short_path %></span>
+                    <span class="text-zinc-300 truncate max-w-xs"><%= request.short_path %></span>
                   </span>
                 </div>
 
                 <!-- Request hover popup -->
                 <div x-show="showReqPopup" x-cloak
                      @click.stop
-                     class="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-2 w-[32rem] max-h-[28rem] overflow-y-auto bg-slate-900 border border-indigo-600 rounded-lg shadow-xl p-5 text-sm"
+                     class="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-2 w-[32rem] max-h-[28rem] overflow-y-auto bg-zinc-950 border border-yellow-500/30 rounded-lg shadow-xl p-5 text-sm"
                      x-transition:enter="transition ease-out duration-150"
                      x-transition:enter-start="opacity-0 translate-y-1"
                      x-transition:enter-end="opacity-100 translate-y-0"
                      x-transition:leave="transition ease-in duration-100"
                      x-transition:leave-start="opacity-100 translate-y-0"
                      x-transition:leave-end="opacity-0 translate-y-1">
-                  <div class="font-semibold text-indigo-300 mb-2 border-b border-slate-700 pb-2">
+                  <div class="font-semibold text-yellow-400 mb-2 border-b border-zinc-800 pb-2">
                     Request &mdash; <%= request.method %> <%= request.path %>
                   </div>
 
                   <% if request.request_headers.present? %>
                     <div class="mb-3">
-                      <div class="font-semibold text-slate-400 mb-1">Headers</div>
+                      <div class="font-semibold text-zinc-500 mb-1">Headers</div>
                       <table class="w-full">
                         <% request.request_headers.each do |key, value| %>
-                          <tr class="border-b border-slate-800">
-                            <td class="py-0.5 pr-2 text-slate-400 font-mono whitespace-nowrap align-top"><%= key %></td>
-                            <td class="py-0.5 text-slate-200 font-mono break-all"><%= value %></td>
+                          <tr class="border-b border-zinc-800">
+                            <td class="py-0.5 pr-2 text-zinc-500 font-mono whitespace-nowrap align-top"><%= key %></td>
+                            <td class="py-0.5 text-zinc-300 font-mono break-all"><%= value %></td>
                           </tr>
                         <% end %>
                       </table>
@@ -109,17 +109,17 @@
 
                   <% if request.params.present? && request.params.any? %>
                     <div>
-                      <div class="font-semibold text-slate-400 mb-1">Parameters</div>
-                      <pre class="bg-slate-950 rounded p-2 text-slate-200 font-mono overflow-x-auto whitespace-pre-wrap"><%= format_value(request.params) %></pre>
+                      <div class="font-semibold text-zinc-500 mb-1">Parameters</div>
+                      <pre class="bg-zinc-900 rounded p-2 text-zinc-300 font-mono overflow-x-auto whitespace-pre-wrap"><%= format_value(request.params) %></pre>
                     </div>
                   <% end %>
 
                   <% if request.request_headers.blank? && (request.params.blank? || request.params.empty?) %>
-                    <div class="text-slate-500 italic">No headers or parameters recorded.</div>
+                    <div class="text-zinc-600 italic">No headers or parameters recorded.</div>
                   <% end %>
 
-                  <div class="mt-3 pt-2 border-t border-slate-700 text-center">
-                    <span class="text-xs text-slate-500">Click to expand full details</span>
+                  <div class="mt-3 pt-2 border-t border-zinc-800 text-center">
+                    <span class="text-xs text-zinc-600">Click to expand full details</span>
                   </div>
                 </div>
               </div>
@@ -131,42 +131,42 @@
                    @mouseenter="showRespPopup = true"
                    @mouseleave="showRespPopup = false">
                 <!-- Arrow line (dashed, reverse direction) -->
-                <div class="border-t-[3px] border-dashed w-full relative <%= request.server_error? ? 'border-red-400' : request.client_error? ? 'border-yellow-400' : 'border-emerald-400' %>" style="margin-left: 25%; width: 50%;">
+                <div class="border-t-[3px] border-dashed w-full relative <%= request.server_error? ? 'border-rose-400' : request.client_error? ? 'border-amber-400' : 'border-emerald-400' %>" style="margin-left: 25%; width: 50%;">
                   <!-- Arrow head (pointing left) -->
                   <div class="absolute -left-[1px] -top-[7px] w-0 h-0 border-r-[10px] border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent
-                    <%= request.server_error? ? 'border-r-red-400' : request.client_error? ? 'border-r-yellow-400' : 'border-r-emerald-400' %>"></div>
+                    <%= request.server_error? ? 'border-r-rose-400' : request.client_error? ? 'border-r-amber-400' : 'border-r-emerald-400' %>"></div>
                 </div>
                 <!-- Response label -->
                 <div class="text-center mt-1">
                   <span class="inline-flex items-center space-x-2 text-xs">
                     <span class="font-medium <%= status_badge_class(request.status_code) %> rounded px-1.5 py-0.5"><%= request.status_code %></span>
-                    <span class="text-slate-500"><%= request.formatted_duration %></span>
+                    <span class="text-zinc-600"><%= request.formatted_duration %></span>
                   </span>
                 </div>
 
                 <!-- Response hover popup -->
                 <div x-show="showRespPopup" x-cloak
                      @click.stop
-                     class="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-2 w-[32rem] max-h-[28rem] overflow-y-auto bg-slate-900 border border-emerald-600 rounded-lg shadow-xl p-5 text-sm"
+                     class="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-2 w-[32rem] max-h-[28rem] overflow-y-auto bg-zinc-950 border border-emerald-500/30 rounded-lg shadow-xl p-5 text-sm"
                      x-transition:enter="transition ease-out duration-150"
                      x-transition:enter-start="opacity-0 translate-y-1"
                      x-transition:enter-end="opacity-100 translate-y-0"
                      x-transition:leave="transition ease-in duration-100"
                      x-transition:leave-start="opacity-100 translate-y-0"
                      x-transition:leave-end="opacity-0 translate-y-1">
-                  <div class="font-semibold mb-2 border-b border-slate-700 pb-2
-                    <%= request.server_error? ? 'text-red-300' : request.client_error? ? 'text-yellow-300' : 'text-emerald-300' %>">
+                  <div class="font-semibold mb-2 border-b border-zinc-800 pb-2
+                    <%= request.server_error? ? 'text-rose-300' : request.client_error? ? 'text-amber-300' : 'text-emerald-300' %>">
                     Response &mdash; <%= request.status_code %> &middot; <%= request.formatted_duration %>
                   </div>
 
                   <% if request.response_headers.present? %>
                     <div class="mb-3">
-                      <div class="font-semibold text-slate-400 mb-1">Headers</div>
+                      <div class="font-semibold text-zinc-500 mb-1">Headers</div>
                       <table class="w-full">
                         <% request.response_headers.each do |key, value| %>
-                          <tr class="border-b border-slate-800">
-                            <td class="py-0.5 pr-2 text-slate-400 font-mono whitespace-nowrap align-top"><%= key %></td>
-                            <td class="py-0.5 text-slate-200 font-mono break-all"><%= value %></td>
+                          <tr class="border-b border-zinc-800">
+                            <td class="py-0.5 pr-2 text-zinc-500 font-mono whitespace-nowrap align-top"><%= key %></td>
+                            <td class="py-0.5 text-zinc-300 font-mono break-all"><%= value %></td>
                           </tr>
                         <% end %>
                       </table>
@@ -176,24 +176,24 @@
                   <% has_body = request.respond_to?(:response_body) && request.response_body.present? %>
                   <% if has_body %>
                     <div>
-                      <div class="font-semibold text-slate-400 mb-1">Body</div>
-                      <pre class="bg-slate-950 rounded p-2 text-slate-200 font-mono overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto"><%= format_body(request.response_body) %></pre>
+                      <div class="font-semibold text-zinc-500 mb-1">Body</div>
+                      <pre class="bg-zinc-900 rounded p-2 text-zinc-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto"><%= format_body(request.response_body) %></pre>
                     </div>
                   <% end %>
 
                   <% if request.has_exception? %>
                     <div class="mt-2">
-                      <div class="font-semibold text-red-400 mb-1">Exception</div>
-                      <div class="text-red-300 font-mono"><%= request.exception["class"] %>: <%= request.exception["message"] %></div>
+                      <div class="font-semibold text-rose-400 mb-1">Exception</div>
+                      <div class="text-rose-300 font-mono"><%= request.exception["class"] %>: <%= request.exception["message"] %></div>
                     </div>
                   <% end %>
 
                   <% if request.response_headers.blank? && !has_body && !request.has_exception? %>
-                    <div class="text-slate-500 italic">No response details recorded.</div>
+                    <div class="text-zinc-600 italic">No response details recorded.</div>
                   <% end %>
 
-                  <div class="mt-3 pt-2 border-t border-slate-700 text-center">
-                    <span class="text-xs text-slate-500">Click to expand full details</span>
+                  <div class="mt-3 pt-2 border-t border-zinc-800 text-center">
+                    <span class="text-xs text-zinc-600">Click to expand full details</span>
                   </div>
                 </div>
               </div>
@@ -206,7 +206,7 @@
           <!-- Expanded full detail panel -->
           <div x-show="expanded === <%= index %>" x-cloak
                x-data="{ side: 'request', reqTab: 'headers', respTab: 'headers' }"
-               class="mx-4 mb-3 rounded-lg border-2 border-indigo-500/60 bg-slate-950 shadow-lg shadow-indigo-500/10 overflow-hidden"
+               class="mx-4 mb-3 rounded-lg border-2 border-yellow-500/30 bg-zinc-950 shadow-lg shadow-yellow-500/5 overflow-hidden"
                x-transition:enter="transition ease-out duration-300"
                x-transition:enter-start="opacity-0 transform -translate-y-3 scale-[0.98]"
                x-transition:enter-end="opacity-100 transform translate-y-0 scale-100"
@@ -215,64 +215,64 @@
                x-transition:leave-end="opacity-0 transform -translate-y-2">
 
             <!-- Panel header -->
-            <div class="bg-indigo-900/30 border-b border-indigo-500/30 px-5 py-3 flex items-center justify-between">
+            <div class="bg-yellow-500/5 border-b border-yellow-500/20 px-5 py-3 flex items-center justify-between">
               <div class="flex items-center space-x-3">
                 <span class="font-semibold <%= method_badge_class(request.method) %> rounded px-2 py-1 text-sm"><%= request.method %></span>
-                <span class="text-white font-medium text-sm break-all"><%= request.path %></span>
+                <span class="text-zinc-200 font-medium text-sm break-all"><%= request.path %></span>
               </div>
               <div class="flex items-center space-x-3">
                 <span class="font-medium text-sm <%= status_badge_class(request.status_code) %> rounded px-2 py-1"><%= request.status_code %></span>
-                <%= link_to "Swagger", request.swagger_url, target: "_blank", class: "text-xs text-indigo-400 hover:text-indigo-300 border border-indigo-600 rounded px-2 py-0.5", onclick: "event.stopPropagation()" %>
+                <%= link_to "Swagger", request.swagger_url, target: "_blank", class: "text-xs text-yellow-400 hover:text-yellow-300 border border-yellow-500/30 rounded px-2 py-0.5 transition-colors", onclick: "event.stopPropagation()" %>
               </div>
             </div>
 
             <!-- Summary stats -->
-            <div class="px-5 py-4 border-b border-slate-800">
+            <div class="px-5 py-4 border-b border-zinc-800">
               <div class="grid grid-cols-2 sm:grid-cols-5 gap-x-6 gap-y-3 text-sm">
                 <div>
-                  <span class="text-slate-500 text-xs uppercase tracking-wider font-semibold">Controller</span>
-                  <div class="text-white mt-0.5"><%= request.controller_action || "N/A" %></div>
+                  <span class="text-zinc-600 text-xs uppercase tracking-wider font-semibold">Controller</span>
+                  <div class="text-zinc-200 mt-0.5"><%= request.controller_action || "N/A" %></div>
                 </div>
                 <div>
-                  <span class="text-slate-500 text-xs uppercase tracking-wider font-semibold">Duration</span>
-                  <div class="text-white mt-0.5"><%= request.formatted_duration %></div>
+                  <span class="text-zinc-600 text-xs uppercase tracking-wider font-semibold">Duration</span>
+                  <div class="text-zinc-200 mt-0.5"><%= request.formatted_duration %></div>
                 </div>
                 <div>
-                  <span class="text-slate-500 text-xs uppercase tracking-wider font-semibold">Time</span>
-                  <div class="text-white mt-0.5"><%= request.created_at.strftime("%H:%M:%S.%L") %></div>
+                  <span class="text-zinc-600 text-xs uppercase tracking-wider font-semibold">Time</span>
+                  <div class="text-zinc-200 mt-0.5"><%= request.created_at.strftime("%H:%M:%S.%L") %></div>
                 </div>
                 <div>
-                  <span class="text-slate-500 text-xs uppercase tracking-wider font-semibold">IP Address</span>
-                  <div class="text-white mt-0.5"><%= request.ip_address || "N/A" %></div>
+                  <span class="text-zinc-600 text-xs uppercase tracking-wider font-semibold">IP Address</span>
+                  <div class="text-zinc-200 mt-0.5"><%= request.ip_address || "N/A" %></div>
                 </div>
                 <div>
-                  <span class="text-slate-500 text-xs uppercase tracking-wider font-semibold">Memory</span>
-                  <div class="text-white mt-0.5"><%= request.formatted_memory_delta %></div>
+                  <span class="text-zinc-600 text-xs uppercase tracking-wider font-semibold">Memory</span>
+                  <div class="text-zinc-200 mt-0.5"><%= request.formatted_memory_delta %></div>
                 </div>
               </div>
             </div>
 
             <!-- Exception (if present) -->
             <% if request.has_exception? %>
-              <div class="mx-5 mt-4 bg-red-950/50 border border-red-800 rounded-lg p-4">
-                <h3 class="text-sm font-semibold text-red-400 flex items-center mb-2">
+              <div class="mx-5 mt-4 bg-rose-500/5 border border-rose-500/20 rounded-lg p-4">
+                <h3 class="text-sm font-semibold text-rose-400 flex items-center mb-2">
                   <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                   </svg>
                   Exception
                 </h3>
-                <div class="text-sm text-red-300 font-mono"><%= request.exception["class"] %>: <%= request.exception["message"] %></div>
+                <div class="text-sm text-rose-300 font-mono"><%= request.exception["class"] %>: <%= request.exception["message"] %></div>
                 <% if request.exception["backtrace"].present? %>
-                  <pre class="mt-2 bg-slate-900 rounded p-3 text-xs text-red-200 overflow-x-auto max-h-48"><%= request.exception["backtrace"].join("\n") %></pre>
+                  <pre class="mt-2 bg-zinc-900 rounded p-3 text-xs text-rose-200 overflow-x-auto max-h-48"><%= request.exception["backtrace"].join("\n") %></pre>
                 <% end %>
               </div>
             <% end %>
 
             <!-- Request / Response toggle -->
             <div class="px-5 pt-4" @click.stop>
-              <div class="inline-flex rounded-lg bg-slate-800 p-1">
+              <div class="inline-flex rounded-lg bg-zinc-800 p-1">
                 <button @click="side = 'request'"
-                        :class="side === 'request' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+                        :class="side === 'request' ? 'bg-yellow-500 text-black shadow' : 'text-zinc-400 hover:text-zinc-200'"
                         class="flex items-center space-x-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"></path>
@@ -280,7 +280,7 @@
                   <span>Request</span>
                 </button>
                 <button @click="side = 'response'"
-                        :class="side === 'response' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+                        :class="side === 'response' ? 'bg-emerald-500 text-black shadow' : 'text-zinc-400 hover:text-zinc-200'"
                         class="flex items-center space-x-2 rounded-md px-4 py-2 text-sm font-medium transition-all duration-200">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"></path>
@@ -295,14 +295,14 @@
             <div x-show="side === 'request'" @click.stop>
               <!-- Request tabs -->
               <div class="px-5 pt-3">
-                <nav class="flex border-b border-slate-700 -mb-px">
-                  <button @click="reqTab = 'headers'" :class="reqTab === 'headers' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-4 py-2.5 border-b-2 text-sm font-medium">
+                <nav class="flex border-b border-zinc-800 -mb-px">
+                  <button @click="reqTab = 'headers'" :class="reqTab === 'headers' ? 'border-yellow-500 text-yellow-400' : 'border-transparent text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'" class="px-4 py-2.5 border-b-2 text-sm font-medium transition-colors">
                     Headers
                   </button>
-                  <button @click="reqTab = 'params'" :class="reqTab === 'params' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-4 py-2.5 border-b-2 text-sm font-medium">
+                  <button @click="reqTab = 'params'" :class="reqTab === 'params' ? 'border-yellow-500 text-yellow-400' : 'border-transparent text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'" class="px-4 py-2.5 border-b-2 text-sm font-medium transition-colors">
                     Params
                   </button>
-                  <button @click="reqTab = 'body'" :class="reqTab === 'body' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-4 py-2.5 border-b-2 text-sm font-medium">
+                  <button @click="reqTab = 'body'" :class="reqTab === 'body' ? 'border-yellow-500 text-yellow-400' : 'border-transparent text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'" class="px-4 py-2.5 border-b-2 text-sm font-medium transition-colors">
                     Body
                   </button>
                 </nav>
@@ -316,13 +316,13 @@
                     <div class="space-y-2">
                       <% request.request_headers.each do |key, value| %>
                         <div class="flex">
-                          <span class="text-sm font-medium text-indigo-400 w-48 flex-shrink-0"><%= key %></span>
-                          <span class="text-sm text-white break-all"><%= value %></span>
+                          <span class="text-sm font-medium text-yellow-400 w-48 flex-shrink-0"><%= key %></span>
+                          <span class="text-sm text-zinc-200 break-all"><%= value %></span>
                         </div>
                       <% end %>
                     </div>
                   <% else %>
-                    <p class="text-sm text-slate-400">No request headers</p>
+                    <p class="text-sm text-zinc-500">No request headers</p>
                   <% end %>
                 </div>
 
@@ -332,22 +332,22 @@
                     <div class="space-y-2">
                       <% request.params.each do |key, value| %>
                         <div class="flex">
-                          <span class="text-sm font-medium text-indigo-400 w-48 flex-shrink-0"><%= key %></span>
-                          <span class="text-sm text-white break-all"><%= format_value(value) %></span>
+                          <span class="text-sm font-medium text-yellow-400 w-48 flex-shrink-0"><%= key %></span>
+                          <span class="text-sm text-zinc-200 break-all"><%= format_value(value) %></span>
                         </div>
                       <% end %>
                     </div>
                   <% else %>
-                    <p class="text-sm text-slate-400">No parameters</p>
+                    <p class="text-sm text-zinc-500">No parameters</p>
                   <% end %>
                 </div>
 
                 <!-- Request Body -->
                 <div x-show="reqTab === 'body'" x-cloak>
                   <% if request.respond_to?(:request_body) && request.request_body.present? %>
-                    <pre class="bg-slate-900 rounded p-4 text-sm text-white overflow-x-auto max-h-96"><%= format_body(request.request_body) %></pre>
+                    <pre class="bg-zinc-900 rounded p-4 text-sm text-zinc-200 overflow-x-auto max-h-96"><%= format_body(request.request_body) %></pre>
                   <% else %>
-                    <p class="text-sm text-slate-400">No request body</p>
+                    <p class="text-sm text-zinc-500">No request body</p>
                   <% end %>
                 </div>
               </div>
@@ -357,17 +357,17 @@
             <div x-show="side === 'response'" x-cloak @click.stop>
               <!-- Response tabs -->
               <div class="px-5 pt-3">
-                <nav class="flex border-b border-slate-700 -mb-px">
-                  <button @click="respTab = 'headers'" :class="respTab === 'headers' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-4 py-2.5 border-b-2 text-sm font-medium">
+                <nav class="flex border-b border-zinc-800 -mb-px">
+                  <button @click="respTab = 'headers'" :class="respTab === 'headers' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'" class="px-4 py-2.5 border-b-2 text-sm font-medium transition-colors">
                     Headers
                   </button>
-                  <button @click="respTab = 'body'" :class="respTab === 'body' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-4 py-2.5 border-b-2 text-sm font-medium">
+                  <button @click="respTab = 'body'" :class="respTab === 'body' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'" class="px-4 py-2.5 border-b-2 text-sm font-medium transition-colors">
                     Body
                   </button>
-                  <button @click="respTab = 'logs'" :class="respTab === 'logs' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'" class="px-4 py-2.5 border-b-2 text-sm font-medium">
+                  <button @click="respTab = 'logs'" :class="respTab === 'logs' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'" class="px-4 py-2.5 border-b-2 text-sm font-medium transition-colors">
                     Logs
                     <% if request.logs.present? && request.logs.any? %>
-                      <span class="ml-1.5 inline-flex items-center rounded-full bg-slate-700 px-2 py-0.5 text-xs"><%= request.logs.size %></span>
+                      <span class="ml-1.5 inline-flex items-center rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400"><%= request.logs.size %></span>
                     <% end %>
                   </button>
                 </nav>
@@ -382,21 +382,21 @@
                       <% request.response_headers.each do |key, value| %>
                         <div class="flex">
                           <span class="text-sm font-medium text-emerald-400 w-48 flex-shrink-0"><%= key %></span>
-                          <span class="text-sm text-white break-all"><%= value %></span>
+                          <span class="text-sm text-zinc-200 break-all"><%= value %></span>
                         </div>
                       <% end %>
                     </div>
                   <% else %>
-                    <p class="text-sm text-slate-400">No response headers</p>
+                    <p class="text-sm text-zinc-500">No response headers</p>
                   <% end %>
                 </div>
 
                 <!-- Response Body -->
                 <div x-show="respTab === 'body'" x-cloak>
                   <% if request.respond_to?(:response_body) && request.response_body.present? %>
-                    <pre class="bg-slate-900 rounded p-4 text-sm text-white overflow-x-auto max-h-96"><%= format_body(request.response_body) %></pre>
+                    <pre class="bg-zinc-900 rounded p-4 text-sm text-zinc-200 overflow-x-auto max-h-96"><%= format_body(request.response_body) %></pre>
                   <% else %>
-                    <p class="text-sm text-slate-400">No response body captured</p>
+                    <p class="text-sm text-zinc-500">No response body captured</p>
                   <% end %>
                 </div>
 
@@ -409,16 +409,16 @@
                       <% end %>
                     </div>
                   <% else %>
-                    <p class="text-sm text-slate-400">No logs captured</p>
+                    <p class="text-sm text-zinc-500">No logs captured</p>
                   <% end %>
                 </div>
               </div>
             </div>
 
             <!-- Footer -->
-            <div class="px-5 py-3 border-t border-slate-800 flex items-center justify-between bg-slate-950">
-              <span class="text-xs text-slate-600 font-mono"><%= request.full_url %></span>
-              <span class="text-xs text-slate-600">Click row to collapse</span>
+            <div class="px-5 py-3 border-t border-zinc-800 flex items-center justify-between bg-zinc-950">
+              <span class="text-xs text-zinc-700 font-mono"><%= request.full_url %></span>
+              <span class="text-xs text-zinc-700">Click row to collapse</span>
             </div>
           </div>
 
@@ -426,14 +426,14 @@
           <% if index < @requests.size - 1 %>
             <div class="relative flex" style="height: 12px;">
               <div class="w-1/2 flex justify-center">
-                <div class="w-px bg-indigo-800 h-full"></div>
+                <div class="w-px bg-yellow-500/30 h-full"></div>
               </div>
               <div class="w-1/2 flex justify-center">
-                <div class="w-px bg-emerald-800 h-full"></div>
+                <div class="w-px bg-emerald-500/30 h-full"></div>
               </div>
               <!-- Horizontal divider line -->
               <div class="absolute inset-x-0 top-1/2 mx-12">
-                <div class="border-t border-dashed border-slate-600"></div>
+                <div class="border-t border-dashed border-zinc-700"></div>
               </div>
             </div>
           <% end %>
@@ -441,9 +441,9 @@
       </div>
     </div>
   <% else %>
-    <div class="bg-slate-800 rounded-lg border border-slate-700 p-12 text-center">
-      <p class="text-slate-400">No requests found<%= " for this client" if @selected_client %>.</p>
-      <p class="text-sm text-slate-500 mt-2">Requests will appear here as they are recorded.</p>
+    <div class="bg-zinc-900 rounded-lg border border-zinc-800 p-12 text-center">
+      <p class="text-zinc-500">No requests found<%= " for this client" if @selected_client %>.</p>
+      <p class="text-sm text-zinc-600 mt-2">Requests will appear here as they are recorded.</p>
     </div>
   <% end %>
 </div>

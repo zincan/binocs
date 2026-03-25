@@ -2,7 +2,7 @@
 
 module Binocs
   class RequestsController < ApplicationController
-    before_action :set_request, only: [:show, :destroy]
+    before_action :set_request, only: [:show, :destroy, :lifecycle, :raw]
 
     def index
       @requests = Request.recent
@@ -112,6 +112,53 @@ module Binocs
 
       # Response time distribution (buckets)
       @duration_buckets = build_duration_buckets
+    end
+
+    def lifecycle
+      logs = Array(@request.logs)
+
+      # Extract the controller log entry (the summary line from ActiveSupport::Notifications)
+      controller_log = logs.find { |l| l["type"] == "controller" }
+
+      # Timing breakdown
+      total_duration = @request.duration_ms.to_f
+      controller_duration = controller_log&.dig("duration").to_f
+      view_runtime = controller_log&.dig("view_runtime").to_f
+      db_runtime = controller_log&.dig("db_runtime").to_f
+
+      middleware_time = [total_duration - controller_duration, 0].max
+      other_time = [controller_duration - view_runtime - db_runtime, 0].max
+
+      @lifecycle = {
+        total_duration: total_duration,
+        controller_duration: controller_duration,
+        middleware_time: middleware_time,
+        view_runtime: view_runtime,
+        db_runtime: db_runtime,
+        other_time: other_time
+      }
+
+      # SQL queries from logs
+      @sql_queries = logs.select { |l| l["type"] == "sql" }
+
+      # Render entries from logs
+      @render_entries = logs.select { |l| l["type"] == "render" }
+
+      # Halted filter (if any before_action halted the chain)
+      @halted_filter = logs.find { |l| l["type"] == "halted" }
+
+      # Redirect info
+      @redirect = logs.find { |l| l["type"] == "redirect" }
+
+      # Exception info (from logs or request model)
+      @exception_log = logs.find { |l| l["type"] == "exception" }
+
+      # Generic log entries
+      @log_entries = logs.select { |l| l["type"] == "log" }
+    end
+
+    def raw
+      @section = params[:section].presence || "full"
     end
 
     def clear

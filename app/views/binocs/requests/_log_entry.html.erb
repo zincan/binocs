@@ -1,72 +1,72 @@
 <% border_class = case log["type"]
-                  when "exception" then "border-l-4 border-l-red-500"
-                  when "log" then log["level"] == "error" || log["level"] == "fatal" ? "border-l-4 border-l-red-500" : "border-l-4 border-l-yellow-500"
-                  when "sql" then log["error"] ? "border-l-4 border-l-red-500" : ""
-                  when "render" then log["error"] ? "border-l-4 border-l-red-500" : ""
+                  when "exception" then "border-l-4 border-l-rose-500"
+                  when "log" then log["level"] == "error" || log["level"] == "fatal" ? "border-l-4 border-l-rose-500" : "border-l-4 border-l-amber-500"
+                  when "sql" then log["error"] ? "border-l-4 border-l-rose-500" : ""
+                  when "render" then log["error"] ? "border-l-4 border-l-rose-500" : ""
                   else ""
                   end %>
 
-<div class="bg-slate-900 rounded p-4 <%= border_class %>">
+<div class="bg-zinc-950 rounded p-4 <%= border_class %>">
   <div class="flex items-center justify-between mb-2">
     <div class="flex items-center space-x-2">
       <% type_color = case log["type"]
-                       when "exception" then "text-red-400 bg-red-900/50"
-                       when "log" then log["level"] == "error" || log["level"] == "fatal" ? "text-red-400 bg-red-900/50" : "text-yellow-400 bg-yellow-900/50"
-                       when "sql" then log["error"] ? "text-red-400 bg-red-900/50" : "text-blue-400 bg-blue-900/50"
-                       when "render" then "text-purple-400 bg-purple-900/50"
-                       when "controller" then "text-indigo-400 bg-indigo-900/50"
-                       when "redirect" then "text-cyan-400 bg-cyan-900/50"
-                       when "halted" then "text-yellow-400 bg-yellow-900/50"
-                       else "text-slate-400 bg-slate-800"
+                       when "exception" then "text-rose-400 bg-rose-500/10"
+                       when "log" then log["level"] == "error" || log["level"] == "fatal" ? "text-rose-400 bg-rose-500/10" : "text-amber-400 bg-amber-500/10"
+                       when "sql" then log["error"] ? "text-rose-400 bg-rose-500/10" : "text-cyan-400 bg-cyan-500/10"
+                       when "render" then "text-purple-400 bg-purple-500/10"
+                       when "controller" then "text-yellow-400 bg-yellow-500/10"
+                       when "redirect" then "text-cyan-400 bg-cyan-500/10"
+                       when "halted" then "text-amber-400 bg-amber-500/10"
+                       else "text-zinc-400 bg-zinc-800"
                        end %>
       <span class="text-xs font-medium uppercase rounded px-1.5 py-0.5 <%= type_color %>"><%= log["type"] %></span>
       <% if log["level"] %>
-        <span class="text-xs font-bold uppercase <%= log["level"] == 'error' || log["level"] == 'fatal' ? 'text-red-300' : 'text-yellow-300' %>"><%= log["level"] %></span>
+        <span class="text-xs font-bold uppercase <%= log["level"] == 'error' || log["level"] == 'fatal' ? 'text-rose-300' : 'text-amber-300' %>"><%= log["level"] %></span>
       <% end %>
       <% if log["duration"] %>
-        <span class="text-xs text-slate-500"><%= log["duration"] %>ms</span>
+        <span class="text-xs text-zinc-600"><%= log["duration"] %>ms</span>
       <% end %>
     </div>
-    <span class="text-xs text-slate-500"><%= log["timestamp"] %></span>
+    <span class="text-xs text-zinc-600"><%= log["timestamp"] %></span>
   </div>
 
   <% case log["type"] %>
   <% when "controller" %>
-    <div class="text-sm text-white">
-      <span class="text-slate-400">Controller:</span> <%= log["controller"] %>#<%= log["action"] %>
+    <div class="text-sm text-zinc-200">
+      <span class="text-zinc-500">Controller:</span> <%= log["controller"] %>#<%= log["action"] %>
       <% if log["view_runtime"] %>
-        <span class="ml-4 text-slate-400">View:</span> <%= log["view_runtime"] %>ms
+        <span class="ml-4 text-zinc-500">View:</span> <%= log["view_runtime"] %>ms
       <% end %>
       <% if log["db_runtime"] %>
-        <span class="ml-4 text-slate-400">DB:</span> <%= log["db_runtime"] %>ms
+        <span class="ml-4 text-zinc-500">DB:</span> <%= log["db_runtime"] %>ms
       <% end %>
     </div>
 
   <% when "redirect" %>
-    <div class="text-sm text-white">
-      <span class="text-slate-400">Redirect to:</span> <%= log["location"] %>
-      <span class="ml-4 text-slate-400">Status:</span> <%= log["status"] %>
+    <div class="text-sm text-zinc-200">
+      <span class="text-zinc-500">Redirect to:</span> <%= log["location"] %>
+      <span class="ml-4 text-zinc-500">Status:</span> <%= log["status"] %>
     </div>
 
   <% when "sql" %>
     <div>
       <div class="flex items-center space-x-2 mb-1">
-        <span class="text-xs text-slate-400"><%= log["name"] %></span>
+        <span class="text-xs text-zinc-500"><%= log["name"] %></span>
       </div>
-      <pre class="text-sm font-mono overflow-x-auto whitespace-pre-wrap <%= log["error"] ? 'text-red-300' : 'text-emerald-300' %>"><%= log["sql"] %></pre>
+      <pre class="text-sm font-mono overflow-x-auto whitespace-pre-wrap <%= log["error"] ? 'text-rose-300' : 'text-emerald-300' %>"><%= log["sql"] %></pre>
       <% if log["error"] %>
-        <div class="mt-2 text-sm text-red-300">
+        <div class="mt-2 text-sm text-rose-300">
           <span class="font-semibold"><%= log["exception_class"] %>:</span> <%= log["exception_message"] %>
         </div>
       <% end %>
     </div>
 
   <% when "render" %>
-    <div class="text-sm text-white">
-      <span class="text-slate-400"><%= log["render_type"]&.capitalize %>:</span>
+    <div class="text-sm text-zinc-200">
+      <span class="text-zinc-500"><%= log["render_type"]&.capitalize %>:</span>
       <span class="font-mono text-purple-300 ml-1"><%= log["identifier"] %></span>
       <% if log["error"] %>
-        <div class="mt-1 text-red-300">
+        <div class="mt-1 text-rose-300">
           <span class="font-semibold"><%= log["exception_class"] %>:</span> <%= log["exception_message"] %>
         </div>
       <% end %>
@@ -74,31 +74,31 @@
 
   <% when "exception" %>
     <div class="text-sm">
-      <div class="text-red-300 font-mono font-semibold"><%= log["class"] %></div>
-      <div class="text-red-200 mt-1"><%= log["message"] %></div>
+      <div class="text-rose-300 font-mono font-semibold"><%= log["class"] %></div>
+      <div class="text-rose-200 mt-1"><%= log["message"] %></div>
       <% if log["backtrace"].present? %>
-        <pre class="mt-2 bg-slate-950 rounded p-3 text-xs text-red-200 overflow-x-auto max-h-48"><%= Array(log["backtrace"]).join("\n") %></pre>
+        <pre class="mt-2 bg-zinc-900 rounded p-3 text-xs text-rose-200 overflow-x-auto max-h-48"><%= Array(log["backtrace"]).join("\n") %></pre>
       <% end %>
       <% if log["cause"].present? %>
-        <div class="mt-3 pl-3 border-l-2 border-red-800">
-          <div class="text-xs text-red-400 uppercase font-semibold mb-1">Caused by</div>
-          <div class="text-red-300 font-mono text-xs"><%= log["cause"]["class"] %>: <%= log["cause"]["message"] %></div>
+        <div class="mt-3 pl-3 border-l-2 border-rose-500/30">
+          <div class="text-xs text-rose-400 uppercase font-semibold mb-1">Caused by</div>
+          <div class="text-rose-300 font-mono text-xs"><%= log["cause"]["class"] %>: <%= log["cause"]["message"] %></div>
           <% if log["cause"]["backtrace"].present? %>
-            <pre class="mt-1 text-xs text-red-200/70 overflow-x-auto max-h-24"><%= Array(log["cause"]["backtrace"]).join("\n") %></pre>
+            <pre class="mt-1 text-xs text-rose-200/70 overflow-x-auto max-h-24"><%= Array(log["cause"]["backtrace"]).join("\n") %></pre>
           <% end %>
         </div>
       <% end %>
     </div>
 
   <% when "log" %>
-    <pre class="text-sm font-mono whitespace-pre-wrap <%= log["level"] == 'error' || log["level"] == 'fatal' ? 'text-red-300' : 'text-yellow-300' %>"><%= log["message"] %></pre>
+    <pre class="text-sm font-mono whitespace-pre-wrap <%= log["level"] == 'error' || log["level"] == 'fatal' ? 'text-rose-300' : 'text-amber-300' %>"><%= log["message"] %></pre>
 
   <% when "halted" %>
-    <div class="text-sm text-yellow-300">
+    <div class="text-sm text-amber-300">
       Filter chain halted by <span class="font-mono font-semibold"><%= log["filter"] %></span>
     </div>
 
   <% else %>
-    <pre class="text-sm text-white"><%= format_value(log) %></pre>
+    <pre class="text-sm text-zinc-200"><%= format_value(log) %></pre>
   <% end %>
 </div>

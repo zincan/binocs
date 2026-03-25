@@ -1,5 +1,5 @@
 <%= turbo_frame_tag dom_id(request) do %>
-  <%= link_to binocs.request_path(request.uuid), class: "block hover:bg-slate-700/50 transition-colors duration-150", data: { turbo_frame: "_top" } do %>
+  <%= link_to binocs.request_path(request.uuid), class: "block hover:bg-yellow-500/5 transition-colors duration-150", data: { turbo_frame: "_top" } do %>
     <div class="px-4 py-3 pr-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4 min-w-0">
@@ -14,20 +14,20 @@
           </span>
 
           <!-- Path -->
-          <span class="text-sm text-white truncate" title="<%= request.path %>">
+          <span class="text-sm text-zinc-200 truncate" title="<%= request.path %>">
             <%= request.short_path %>
           </span>
 
           <!-- Controller#Action -->
           <% if request.controller_action %>
-            <span class="text-xs text-slate-400">
+            <span class="text-xs text-zinc-500">
               <%= request.controller_action %>
             </span>
           <% end %>
 
           <!-- Exception Indicator -->
           <% if request.has_exception? %>
-            <span class="inline-flex items-center rounded-full bg-red-900/50 px-2 py-1 text-xs font-medium text-red-300">
+            <span class="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-400 ring-1 ring-rose-500/20">
               <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
               </svg>
@@ -36,7 +36,7 @@
           <% end %>
         </div>
 
-        <div class="flex items-center space-x-4 text-sm text-slate-400 flex-shrink-0 pl-4">
+        <div class="flex items-center space-x-4 text-sm text-zinc-500 flex-shrink-0 pl-4">
           <!-- Duration -->
           <span title="Duration" class="whitespace-nowrap">
             <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
