@@ -112,7 +112,7 @@
   <style>
     body { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
     pre { tab-size: 4; }
-    /* Line numbers */
+    /* Line numbers — subdued but legible against zinc-900 */
     .line-numbers { counter-reset: line; }
     .line-numbers .line::before {
       counter-increment: line;
@@ -121,9 +121,13 @@
       width: 3.5em;
       padding-right: 1em;
       text-align: right;
-      color: #3f3f46;
+      color: #71717a; /* zinc-500: visible but not distracting */
       user-select: none;
       -webkit-user-select: none;
+    }
+    /* Comment lines (starting with #) — distinguished with amber tint */
+    .line-comment {
+      color: #a1a1aa; /* zinc-400 for comments */
     }
   </style>
 </head>
@@ -171,7 +175,7 @@
   <!-- Raw content -->
   <div class="max-w-7xl mx-auto px-4 py-6">
     <div class="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-      <pre id="raw-content" class="p-6 text-sm leading-relaxed overflow-x-auto line-numbers" data-testid="raw-content"><% display_text.each_line do |line| %><span class="line"><%= h(line.chomp) %>
+      <pre id="raw-content" class="p-6 text-sm leading-relaxed overflow-x-auto line-numbers text-zinc-200" data-testid="raw-content"><% display_text.each_line do |line| %><span class="line<%= ' line-comment' if line.strip.start_with?('#') %>"><%= h(line.chomp) %>
 </span><% end %></pre>
     </div>
   </div>
