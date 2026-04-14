@@ -12,8 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = 'A Rails engine that provides a beautiful dashboard to monitor and debug HTTP requests, similar to Laravel Telescope. Includes a terminal UI with vim keybindings.'
   spec.license     = 'MIT'
 
-  spec.metadata['homepage_uri'] = spec.homepage
-  spec.metadata['source_code_uri'] = spec.homepage
+  spec.metadata['source_code_uri'] = "#{spec.homepage}.git"
   spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
@@ -26,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = '>= 3.0.0'
 
   spec.add_dependency 'curses', '~> 1.4'
-  spec.add_dependency 'rails', '>= 7.0'
-  spec.add_dependency 'stimulus-rails', '>= 1.0'
-  spec.add_dependency 'turbo-rails', '>= 1.0'
+  spec.add_dependency 'rails', '>= 7.0', '< 9'
+  spec.add_dependency 'stimulus-rails', '~> 1.0'
+  spec.add_dependency 'turbo-rails', '~> 1.0'
 end

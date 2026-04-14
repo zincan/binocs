@@ -3,7 +3,8 @@
     "allow": [
       "Bash(find /home/nathandrew/Documents/zincan/binocs -name *.test.* -o -name *.spec.*)",
       "Bash(npx @playwright/mcp@latest --help)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(gem build:*)"
     ]
   }
 }
